@@ -30,42 +30,55 @@ pnpm vitest run tests/index.spec.ts
 
 ## Architecture
 
-**Server → SSR → Client Hydration flow:**
+### Request Lifecycle
 
-1. `src/index.tsx` — Hono server routes and middleware (entry point for Workers)
-2. `src/renderer.tsx` — React SSR renderer, generates HTML shell with asset injection
-3. `src/client/index.tsx` — Client hydration entry point
-4. `src/client/app.tsx` — Root React component for the client
+```
+Request → Hono middleware (renderer) → React Router static handler → SSR → HTML Response
+                                                                           ↓
+Client loads → createBrowserRouter (hydrationData) → RouterProvider → Interactive
+```
 
-**Key directories:**
+1. `src/index.tsx` — Hono server with `createStaticHandler` catch-all route. Converts `c.req.raw` to React Router context, sets HTTP status from `context.statusCode`, renders via `StaticRouterProvider`.
+2. `src/renderer.tsx` — `@hono/react-renderer` HTML shell with Vite asset injection (`ViteClient`, `Script`, `Link`). Receives React Router output as `children`.
+3. `src/routes.tsx` — **Shared route definitions** (`RouteObject[]`) used by both server and client. Single source of truth for all page routes.
+4. `src/client/index.tsx` — Client hydration via `createBrowserRouter` + `RouterProvider`, reads `window.__staticRouterHydrationData`.
 
-- `src/client/` — Client-side React code (hydration, styles, components)
-- `src/lib/` — Shared utilities (e.g., `cn()` class merge helper)
+### Key Directories
+
+- `src/client/` — Client-side React code (hydration, styles, page components)
+- `src/components/` — Shared React components (internal, camelCase naming)
 - `src/components/ui/` — shadcn/ui components (added via `pnpm dlx shadcn@latest add`)
-- `tests/` — Vitest tests using Cloudflare Workers pool
+- `src/lib/` — Shared utilities (e.g., `cn()` class merge helper)
+- `tests/` — Vitest integration tests using Cloudflare Workers pool
 
-**Styling:** TailwindCSS v4 with design tokens defined as CSS custom properties in `src/client/style.css`. Uses oklch color space. Dark mode via `.dark` class.
+### Adding Routes
 
-**UI Components:** shadcn/ui (new-york style) with Radix UI primitives. Config in `components.json`.
+Add new routes to `src/routes.tsx`. Both server SSR and client hydration share this file. API routes (`/api/*`) and admin routes (`/admin/*`) should be registered in `src/index.tsx` **before** the catch-all `app.all("*")` handler.
 
 ## Tech Stack
 
 - **Runtime:** Cloudflare Workers
 - **Server:** Hono
+- **Routing:** React Router v7 (Data Mode SSR — `createStaticHandler`/`createBrowserRouter`)
 - **UI:** React 19 with SSR + hydration via `vite-ssr-components`
 - **Build:** Vite 7 with `@cloudflare/vite-plugin`
 - **Styling:** TailwindCSS v4, class-variance-authority, tailwind-merge
+- **UI Components:** shadcn/ui (new-york style, Radix UI primitives, Lucide icons). Config in `components.json`.
 - **Testing:** Vitest with `@cloudflare/vitest-pool-workers` (tests run in Worker environment)
 - **Storage:** Cloudflare D1 (SQLite)
-- **Path alias:** `@` → `./src` (configured in both tsconfig.json and vite.config.ts)
+- **Path alias:** `@` → `./src` (configured in tsconfig.json, vite.config.ts, and vitest.config.ts)
+
+## Naming Conventions
+
+- Internal TypeScript files use **camelCase** (e.g. `errorBoundary.tsx`, `feedParser.ts`)
+- shadcn/ui generated files keep their original lowercase naming (e.g. `button.tsx`, `card.tsx`)
 
 ## Testing Conventions
 
+- **Coverage target: 80%+**
+- **Integration tests preferred** over unit tests — test through the Hono `app.request()` API to exercise the full server stack
 - Test files go in `tests/` with `.spec.ts` extension
 - Tests run inside the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers`
-- Import test utilities from `cloudflare:test` (not `vitest` globals for worker-specific APIs)
+- Import test utilities from `cloudflare:test` for worker-specific APIs (e.g. `env` bindings)
 - Vitest config references `wrangler.jsonc` for worker bindings
-
-## Adding Routes
-
-Hono routes are defined in `src/index.tsx`. API routes should use `/api/*` prefix. Admin routes use `/admin/*` prefix (protected by Cloudflare Zero Trust Access).
+- Radix UI transitive dependencies (`react-remove-scroll`, `react-remove-scroll-bar`) must be listed in `vitest.config.ts` under `test.deps.optimizer.ssr.include` and as explicit devDependencies, otherwise workerd cannot resolve their bare specifier imports
