@@ -14,7 +14,7 @@ export const renderer = reactRenderer(
           <ViteClient />
           <ReactRefresh />
           <Script src="/src/client/index.tsx" />
-          <Link href="/src/style.css" rel="stylesheet" />
+          <Link href="/src/client/style.css" rel="stylesheet" />
         </head>
         <body>
           <div id="root">{children}</div>
