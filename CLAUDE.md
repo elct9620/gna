@@ -23,6 +23,7 @@ pnpm cf-typegen       # Regenerate Cloudflare Worker types
 ```
 
 Run a single test file:
+
 ```bash
 pnpm vitest run tests/index.spec.ts
 ```
@@ -37,6 +38,7 @@ pnpm vitest run tests/index.spec.ts
 4. `src/client/app.tsx` — Root React component for the client
 
 **Key directories:**
+
 - `src/client/` — Client-side React code (hydration, styles, components)
 - `src/lib/` — Shared utilities (e.g., `cn()` class merge helper)
 - `src/components/ui/` — shadcn/ui components (added via `pnpm dlx shadcn@latest add`)
