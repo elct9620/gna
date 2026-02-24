@@ -11,6 +11,6 @@ describe("GET /", () => {
   it("should render content", async () => {
     const res = await app.request("/", {}, env);
     const html = await res.text();
-    expect(html).toContain("Hello!");
+    expect(html).toContain("Coming Soon");
   });
 });
