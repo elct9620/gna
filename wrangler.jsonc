@@ -17,7 +17,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "gna"
+      "database_name": "gna",
+      "database_id": "708389f0-03b8-48fa-95d7-46d1a9648091"
     }
   ]
 }
