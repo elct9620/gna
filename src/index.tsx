@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { Hono } from "hono";
 import {
   createStaticHandler,
