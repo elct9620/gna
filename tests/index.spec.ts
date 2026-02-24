@@ -26,4 +26,10 @@ describe("GET /nonexistent", () => {
     const res = await app.request("/nonexistent", {}, env);
     expect(res.status).toBe(404);
   });
+
+  it("should render not found page", async () => {
+    const res = await app.request("/nonexistent", {}, env);
+    const html = await res.text();
+    expect(html).toContain("Page Not Found");
+  });
 });

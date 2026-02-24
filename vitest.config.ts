@@ -8,6 +8,13 @@ export default defineWorkersConfig({
     },
   },
   test: {
+    deps: {
+      optimizer: {
+        ssr: {
+          include: ["react-remove-scroll", "react-remove-scroll-bar"],
+        },
+      },
+    },
     poolOptions: {
       workers: {
         wrangler: { configPath: "./wrangler.jsonc" },
