@@ -82,3 +82,4 @@ Add new routes to `src/routes.tsx`. Both server SSR and client hydration share t
 - Import test utilities from `cloudflare:test` for worker-specific APIs (e.g. `env` bindings)
 - Vitest config references `wrangler.jsonc` for worker bindings
 - Radix UI transitive dependencies (`react-remove-scroll`, `react-remove-scroll-bar`) must be listed in `vitest.config.ts` under `test.deps.optimizer.ssr.include` and as explicit devDependencies, otherwise workerd cannot resolve their bare specifier imports
+- Do not add packages to `test.deps.optimizer.ssr.include` preemptively — only add them when tests actually fail without it

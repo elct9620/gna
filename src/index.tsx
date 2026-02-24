@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import "@/container";
 import { Hono } from "hono";
 import {
   createStaticHandler,
