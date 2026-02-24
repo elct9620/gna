@@ -6,13 +6,16 @@
     "build": "vite build",
     "preview": "$npm_execpath run build && vite preview",
     "deploy": "$npm_execpath run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "hono": "^4.12.2"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.2.3",
+    "prettier": "^3.8.1",
     "vite": "^7.3.1",
     "vite-ssr-components": "^0.5.2",
     "wrangler": "^4.17.0"
