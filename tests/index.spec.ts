@@ -13,4 +13,17 @@ describe("GET /", () => {
     const html = await res.text();
     expect(html).toContain("Coming Soon");
   });
+
+  it("should contain hydration data", async () => {
+    const res = await app.request("/", {}, env);
+    const html = await res.text();
+    expect(html).toContain("__staticRouterHydrationData");
+  });
+});
+
+describe("GET /nonexistent", () => {
+  it("should return 404", async () => {
+    const res = await app.request("/nonexistent", {}, env);
+    expect(res.status).toBe(404);
+  });
 });
