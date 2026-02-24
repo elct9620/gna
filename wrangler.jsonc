@@ -3,4 +3,13 @@
   "name": "gna",
   "compatibility_date": "2025-08-03",
   "main": "./src/index.tsx",
+  "routes": [
+    {
+      "pattern": "gna.aotoki.me",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
 }
