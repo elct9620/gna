@@ -7,4 +7,10 @@ describe("GET /", () => {
     const res = await app.request("/", {}, env);
     expect(res.status).toBe(200);
   });
+
+  it("should render content", async () => {
+    const res = await app.request("/", {}, env);
+    const html = await res.text();
+    expect(html).toContain("Hello!");
+  });
 });

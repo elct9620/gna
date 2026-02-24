@@ -6,9 +6,11 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM"],
     "types": ["vite/client"],
     "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
-  }
+    "jsxImportSource": "react"
+  },
+  "include": ["src", "worker-configuration.d.ts"],
+  "exclude": ["node_modules"]
 }
