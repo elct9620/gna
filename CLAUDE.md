@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Gna is a full-stack web application running on Cloudflare Workers, using Hono as the server framework with React SSR and client-side hydration.
+Gna is a lightweight, self-hosted newsletter platform running on Cloudflare Workers. It replaces Mailchimp by automatically generating newsletters from RSS feeds, with subscription management via an embeddable CORS API. See `SPEC.md` for full specification.
 
 ## Commands
 
@@ -20,6 +20,11 @@ pnpm typecheck        # TypeScript type checking (tsc)
 pnpm format           # Format code with Prettier
 pnpm format:check     # Check formatting
 pnpm cf-typegen       # Regenerate Cloudflare Worker types
+```
+
+Run a single test file:
+```bash
+pnpm vitest run tests/index.spec.ts
 ```
 
 ## Architecture
@@ -49,4 +54,16 @@ pnpm cf-typegen       # Regenerate Cloudflare Worker types
 - **Build:** Vite 7 with `@cloudflare/vite-plugin`
 - **Styling:** TailwindCSS v4, class-variance-authority, tailwind-merge
 - **Testing:** Vitest with `@cloudflare/vitest-pool-workers` (tests run in Worker environment)
+- **Storage:** Cloudflare D1 (SQLite)
 - **Path alias:** `@` → `./src` (configured in both tsconfig.json and vite.config.ts)
+
+## Testing Conventions
+
+- Test files go in `tests/` with `.spec.ts` extension
+- Tests run inside the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers`
+- Import test utilities from `cloudflare:test` (not `vitest` globals for worker-specific APIs)
+- Vitest config references `wrangler.jsonc` for worker bindings
+
+## Adding Routes
+
+Hono routes are defined in `src/index.tsx`. API routes should use `/api/*` prefix. Admin routes use `/admin/*` prefix (protected by Cloudflare Zero Trust Access).
