@@ -74,7 +74,7 @@ Manual newsletter composition with immediate send or scheduled delivery.
 
 **Action:** The subscriber clicks the unsubscribe link.
 
-**Outcome:** The system marks the subscriber as unsubscribed and displays a confirmation page. The subscriber no longer receives newsletters.
+**Outcome:** The system deletes the subscriber record and displays a confirmation page. The subscriber no longer receives newsletters.
 
 ### RSS Feed Triggers Newsletter
 
@@ -124,9 +124,9 @@ Manual newsletter composition with immediate send or scheduled delivery.
 | -------------------- | --------------------------------------------------------------- |
 | Endpoint             | `GET /api/unsubscribe?token=<token>`                            |
 | Token                | Unique per-subscriber token, included in every newsletter email |
-| Valid token          | Mark subscriber as `unsubscribed`; display confirmation page    |
+| Valid token          | Delete subscriber record; display confirmation page             |
 | Invalid token        | Display error page with contact instructions                    |
-| Already unsubscribed | Display confirmation page (idempotent)                          |
+| Token not found      | Display confirmation page (idempotent)                          |
 
 #### Rate Limiting
 
@@ -140,19 +140,20 @@ Manual newsletter composition with immediate send or scheduled delivery.
 #### Subscriber States
 
 ```
-active ──(unsubscribe)──▶ unsubscribed
+active ──(unsubscribe)──▶ [deleted]
+active ──(admin remove)──▶ [deleted]
 ```
 
-| State          | Description                             |
-| -------------- | --------------------------------------- |
-| `active`       | Receiving newsletters                   |
-| `unsubscribed` | Opted out; excluded from all deliveries |
+| State       | Description                                |
+| ----------- | ------------------------------------------ |
+| `active`    | Receiving newsletters                      |
+| `[deleted]` | Record removed from the database           |
 
 #### Admin Operations
 
 | Operation        | Behavior                                                         |
 | ---------------- | ---------------------------------------------------------------- |
-| List subscribers | Paginated list; filterable by state; default shows `active` only |
+| List subscribers | Paginated list; default shows all active subscribers             |
 | Search           | Filter by email (partial match)                                  |
 | Remove           | Hard delete from database                                        |
 | Export           | Download subscriber list as CSV                                  |
@@ -267,12 +268,64 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Database unavailable                         | API returns `503 Service Unavailable`; Cron logs error, retries next run |
 | Concurrent subscribe requests for same email | Idempotent; one record created; both requests return success             |
 | Schedule send time in the past               | Reject with `400 Bad Request`                                            |
-| Newsletter send partially completes          | Track per-recipient status; resume remaining on next Cron tick           |
+| Newsletter send partially completes          | Log aggregate failure count; resume strategy — _to be decided_          |
 | Admin request without JWT header             | `401 Unauthorized` — `{ "error": "Authentication required" }`           |
 | Admin request with invalid JWT               | `403 Forbidden` — `{ "error": "Invalid token" }`                        |
 | Admin request with expired JWT               | `403 Forbidden` — `{ "error": "Token expired" }`                        |
 | JWKS endpoint unreachable                    | `503 Service Unavailable`; log error                                     |
 | Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set) | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details |
+
+---
+
+## Data Retention & Privacy
+
+### Privacy Principle
+
+The system retains personally identifiable information only for as long as necessary to provide the service, and deletes it immediately once the purpose is fulfilled.
+
+### Data Classification
+
+| Data | PII | Purpose | Retention |
+| ---- | --- | ------- | --------- |
+| Subscriber email | Yes | Deliver newsletters | While active only; deleted on unsubscribe |
+| Unsubscribe token | No | Authenticate unsubscribe | Deleted with subscriber record |
+| Rate limit IP | Yes | Enforce subscribe rate limit | Rate-limit window only (ephemeral) |
+| Newsletter content | No | Archive sent newsletters | Indefinite (admin content) |
+| Delivery statistics | No | Aggregate analytics | Indefinite (no PII) |
+| RSS feed state | No | Track last processed timestamp | Indefinite (operational) |
+
+Admin-related data (JWT claims, identity) is not covered by this privacy policy — the admin is the platform owner.
+
+### Subscriber Data Lifecycle
+
+Unsubscribe triggers immediate hard deletion; there is no soft-delete or grace period.
+
+```
+active ──(unsubscribe)──▶ [deleted]
+active ──(admin remove)──▶ [deleted]
+```
+
+| Event | Rule |
+| ----- | ---- |
+| Unsubscribe | Validate token, then hard delete subscriber record immediately |
+| Admin removal | Hard delete immediately |
+| Resubscribe after deletion | Creates a new record (previous record is unrecoverable) |
+
+### Delivery Tracking
+
+| Rule | Value |
+| ---- | ----- |
+| Per-recipient tracking | Not permitted |
+| Per-newsletter statistics | Total sent count, total failure count |
+| Statistics retention | Indefinite (contains no PII) |
+
+### Rate Limit Data
+
+| Rule | Value |
+| ---- | ----- |
+| Storage | Ephemeral only (in-memory or KV with TTL) |
+| Retention | Evicted after rate-limit window expires (1 minute) |
+| Persistent storage | Not permitted |
 
 ---
 
@@ -315,3 +368,5 @@ To be decided:
 | JWKS              | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification |
 | Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim |
 | Team domain       | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL              |
+| PII               | Personally Identifiable Information — data that can identify a specific person (e.g., email address) |
+| Hard delete       | Permanent removal of a record from the database; not recoverable                            |
