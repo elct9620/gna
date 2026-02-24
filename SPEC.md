@@ -189,12 +189,35 @@ active ──(unsubscribe)──▶ unsubscribed
 
 ### 4. Admin Authentication
 
-| Field                   | Rule                                                          |
-| ----------------------- | ------------------------------------------------------------- |
-| Method                  | Cloudflare Zero Trust Access                                  |
-| Protected routes        | All routes under `/admin/*`                                   |
-| Unauthenticated request | Redirected to Cloudflare Access login page                    |
-| Authorization           | Any user permitted by the configured Cloudflare Access policy |
+#### JWT Verification
+
+| Field                   | Rule                                                                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Method                  | Cloudflare Zero Trust Access                                                                                                  |
+| Protected routes        | All routes under `/admin/*`                                                                                                   |
+| Token source            | `Cf-Access-Jwt-Assertion` request header                                                                                      |
+| Validation              | Verify signature against Cloudflare JWKS endpoint (`https://<team-domain>.cloudflareaccess.com/cdn-cgi/access/certs`)         |
+| Required claims         | `aud` must match the Application Audience (AUD) tag configured in Access; `exp` must be in the future                         |
+| Authenticated request   | Proceed to route handler; user identity available from JWT claims (`email`, `sub`)                                            |
+| Unauthenticated request | `401 Unauthorized` with JSON error body                                                                                       |
+| Invalid or expired token| `403 Forbidden` with JSON error body                                                                                          |
+
+#### Configuration
+
+| Binding                  | Type     | Description                                                      |
+| ------------------------ | -------- | ---------------------------------------------------------------- |
+| `CF_ACCESS_TEAM_NAME`    | Variable | Cloudflare Access team domain (e.g. `myteam`)                    |
+| `CF_ACCESS_AUD`          | Variable | Application Audience (AUD) tag                                   |
+| `DISABLE_AUTH`           | Variable | Set to `"true"` to bypass authentication (development only)      |
+
+#### Development Bypass
+
+| Field                | Rule                                                                     |
+| -------------------- | ------------------------------------------------------------------------ |
+| Condition            | `DISABLE_AUTH` variable equals `"true"`                                  |
+| Behavior             | Skip JWT verification; inject a synthetic identity (`dev@localhost`)     |
+| Scope                | All `/admin/*` routes                                                    |
+| Production safeguard | `DISABLE_AUTH` must NOT be set in production wrangler config             |
 
 ### 5. Newsletter Publishing & Scheduling
 
@@ -245,6 +268,11 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Concurrent subscribe requests for same email | Idempotent; one record created; both requests return success             |
 | Schedule send time in the past               | Reject with `400 Bad Request`                                            |
 | Newsletter send partially completes          | Track per-recipient status; resume remaining on next Cron tick           |
+| Admin request without JWT header             | `401 Unauthorized` — `{ "error": "Authentication required" }`           |
+| Admin request with invalid JWT               | `403 Forbidden` — `{ "error": "Invalid token" }`                        |
+| Admin request with expired JWT               | `403 Forbidden` — `{ "error": "Token expired" }`                        |
+| JWKS endpoint unreachable                    | `503 Service Unavailable`; log error                                     |
+| Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set) | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details |
 
 ---
 
@@ -284,3 +312,6 @@ To be decided:
 | Feed entry        | A single item in an RSS feed representing a published piece of content                  |
 | Unsubscribe token | A unique, per-subscriber token for authenticating unsubscribe requests without login    |
 | Active subscriber | A subscriber in the `active` state who is eligible to receive newsletters               |
+| JWKS              | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification |
+| Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim |
+| Team domain       | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL              |
