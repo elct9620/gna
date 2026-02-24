@@ -2,23 +2,17 @@ import { env } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import app from "../src/index";
 
+const authBypass = { ...env, DISABLE_AUTH: "true" };
+
 describe("GET /admin", () => {
   describe("when DISABLE_AUTH is true", () => {
     it("should return 200", async () => {
-      const res = await app.request(
-        "/admin",
-        {},
-        { ...env, DISABLE_AUTH: "true" },
-      );
+      const res = await app.request("/admin", {}, authBypass);
       expect(res.status).toBe(200);
     });
 
     it("should render Admin Dashboard", async () => {
-      const res = await app.request(
-        "/admin",
-        {},
-        { ...env, DISABLE_AUTH: "true" },
-      );
+      const res = await app.request("/admin", {}, authBypass);
       const html = await res.text();
       expect(html).toContain("Admin Dashboard");
     });
@@ -69,5 +63,34 @@ describe("GET /admin", () => {
       expect(res.status).toBe(500);
       expect(await res.json()).toEqual({ error: "Server misconfiguration" });
     });
+  });
+});
+
+describe("GET /admin/api/subscribers", () => {
+  it("should return empty subscribers list", async () => {
+    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ subscribers: [] });
+  });
+
+  it("should return subscribers after subscribing", async () => {
+    await app.request(
+      "/api/subscribe",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "test@example.com", nickname: "Test" }),
+      },
+      authBypass,
+    );
+
+    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    expect(res.status).toBe(200);
+
+    const data = await res.json<{ subscribers: Array<{ email: string; nickname: string; subscribedAt: string }> }>();
+    expect(data.subscribers).toHaveLength(1);
+    expect(data.subscribers[0].email).toBe("test@example.com");
+    expect(data.subscribers[0].nickname).toBe("Test");
+    expect(data.subscribers[0].subscribedAt).toBeDefined();
   });
 });

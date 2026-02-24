@@ -38,6 +38,10 @@ export class SubscriptionService {
     return subscriber;
   }
 
+  listSubscribers(): Subscriber[] {
+    return Array.from(this.subscribers.values());
+  }
+
   unsubscribe(token: string): void {
     const email = this.tokenIndex.get(token);
     if (!email) {

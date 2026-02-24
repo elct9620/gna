@@ -47,6 +47,19 @@ app.get("/api/unsubscribe", async (c) => {
   return c.redirect("/unsubscribe?status=success", 302);
 });
 
+app.get("/admin/api/subscribers", async (c) => {
+  const service = container.resolve(SubscriptionService);
+  const subscribers = service.listSubscribers();
+
+  return c.json({
+    subscribers: subscribers.map((s) => ({
+      email: s.email,
+      nickname: s.nickname,
+      subscribedAt: s.subscribedAt.toISOString(),
+    })),
+  });
+});
+
 const { query, dataRoutes } = createStaticHandler(routes);
 
 app.all("*", async (c) => {
