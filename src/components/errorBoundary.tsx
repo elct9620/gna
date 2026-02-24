@@ -7,6 +7,7 @@ export function ErrorBoundary() {
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <title>Page Not Found - Gna</title>
         <p className="text-8xl font-bold text-muted-foreground">404</p>
         <h1 className="text-2xl font-bold">Page Not Found</h1>
         <p className="text-muted-foreground">
@@ -21,6 +22,7 @@ export function ErrorBoundary() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <title>Error - Gna</title>
       <p className="text-8xl font-bold text-muted-foreground">500</p>
       <h1 className="text-2xl font-bold">Something Went Wrong</h1>
       <p className="text-muted-foreground">

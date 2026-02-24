@@ -30,4 +30,10 @@ describe("GET /unsubscribe", () => {
     const html = await res.text();
     expect(html).toContain("Unsubscribe");
   });
+
+  it("should have a page title", async () => {
+    const res = await app.request("/unsubscribe", {}, env);
+    const html = await res.text();
+    expect(html).toContain("<title>Unsubscribe - Gna</title>");
+  });
 });

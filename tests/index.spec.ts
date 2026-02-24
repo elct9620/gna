@@ -14,6 +14,12 @@ describe("GET /", () => {
     expect(html).toContain("Subscribe to Newsletter");
   });
 
+  it("should have a page title", async () => {
+    const res = await app.request("/", {}, env);
+    const html = await res.text();
+    expect(html).toContain("<title>Gna Newsletter</title>");
+  });
+
   it("should contain hydration data", async () => {
     const res = await app.request("/", {}, env);
     const html = await res.text();
@@ -31,5 +37,11 @@ describe("GET /nonexistent", () => {
     const res = await app.request("/nonexistent", {}, env);
     const html = await res.text();
     expect(html).toContain("Page Not Found");
+  });
+
+  it("should have a page title", async () => {
+    const res = await app.request("/nonexistent", {}, env);
+    const html = await res.text();
+    expect(html).toContain("<title>Page Not Found - Gna</title>");
   });
 });

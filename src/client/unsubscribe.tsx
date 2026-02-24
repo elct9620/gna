@@ -12,6 +12,7 @@ export function Unsubscribe() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <title>Unsubscribe - Gna</title>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Unsubscribe</CardTitle>

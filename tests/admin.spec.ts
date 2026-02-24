@@ -16,6 +16,12 @@ describe("GET /admin", () => {
       const html = await res.text();
       expect(html).toContain("Admin Dashboard");
     });
+
+    it("should have a page title", async () => {
+      const res = await app.request("/admin", {}, authBypass);
+      const html = await res.text();
+      expect(html).toContain("<title>Admin Dashboard - Gna</title>");
+    });
   });
 
   describe("when auth is enabled", () => {
