@@ -113,7 +113,7 @@ Manual newsletter composition with immediate send or scheduled delivery.
 | Endpoint           | `POST /api/subscribe`                                        |
 | Request body       | `{ "email": "<address>" }`                                   |
 | CORS               | Allow origins configured per deployment                      |
-| Validation         | Reject malformed email addresses                             |
+| Validation         | Reject syntactically invalid email addresses (RFC 5321 addr-spec) |
 | Duplicate email    | Return success without creating a second record (idempotent) |
 | Success response   | `201 Created` — `{ "status": "subscribed" }`                 |
 | Validation failure | `400 Bad Request` — `{ "error": "<reason>" }`                |
@@ -262,13 +262,13 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Scenario                                     | Behavior                                                                 |
 | -------------------------------------------- | ------------------------------------------------------------------------ |
 | RSS feed unreachable                         | Log error; retry on next scheduled run; do not generate newsletter       |
-| RSS feed returns invalid XML                 | Log error; skip this run; alert admin after 3 consecutive failures       |
+| RSS feed returns invalid XML                 | Log error; skip this run; notify admin after 3 consecutive failures (notification mechanism — _to be decided_) |
 | Email service unavailable                    | Queue for retry; log error                                               |
-| Email delivery permanently bounces           | Log bounce; keep subscriber `active` (admin handles manually)            |
+| Email delivery permanently bounces           | Store bounce event (retained 7 days); keep subscriber `active`; admin may remove subscriber manually |
 | Database unavailable                         | API returns `503 Service Unavailable`; Cron logs error, retries next run |
 | Concurrent subscribe requests for same email | Idempotent; one record created; both requests return success             |
 | Schedule send time in the past               | Reject with `400 Bad Request`                                            |
-| Newsletter send partially completes          | Log aggregate failure count; resume strategy — _to be decided_          |
+| Newsletter send partially completes          | Log aggregate failure count; resume strategy — _to be decided (depends on email service provider selection)_ |
 | Admin request without JWT header             | `401 Unauthorized` — `{ "error": "Authentication required" }`           |
 | Admin request with invalid JWT               | `403 Forbidden` — `{ "error": "Invalid token" }`                        |
 | Admin request with expired JWT               | `403 Forbidden` — `{ "error": "Token expired" }`                        |
@@ -292,6 +292,7 @@ The system retains personally identifiable information only for as long as neces
 | Rate limit IP | Yes | Enforce subscribe rate limit | Rate-limit window only (ephemeral) |
 | Newsletter content | No | Archive sent newsletters | Indefinite (admin content) |
 | Delivery statistics | No | Aggregate analytics | Indefinite (no PII) |
+| Bounce events | Yes | Admin reviews delivery failures | Ephemeral; auto-purged after 7 days |
 | RSS feed state | No | Track last processed timestamp | Indefinite (operational) |
 
 Admin-related data (JWT claims, identity) is not covered by this privacy policy — the admin is the platform owner.
@@ -318,6 +319,18 @@ active ──(admin remove)──▶ [deleted]
 | Per-recipient tracking | Not permitted |
 | Per-newsletter statistics | Total sent count, total failure count |
 | Statistics retention | Indefinite (contains no PII) |
+| Bounce event tracking | Permitted as exception; ephemeral storage only (see Bounce Events) |
+
+### Bounce Events
+
+Bounce events are an explicit exception to the per-recipient tracking prohibition. They are retained temporarily to allow the administrator to review delivery failures and take corrective action.
+
+| Rule | Value |
+| ---- | ----- |
+| Stored data | Subscriber email, bounce reason, timestamp |
+| Retention period | 7 days from event creation |
+| Expiry action | Automatic hard delete |
+| Admin access | View bounce events; manually remove bounced subscribers during retention period |
 
 ### Rate Limit Data
 
@@ -346,6 +359,7 @@ To be decided:
 - Email service provider
 - Options: Resend, SendGrid, Mailgun, Amazon SES
 - Selection criteria: Cloudflare Workers compatibility, cost, API simplicity
+- Partial send recovery strategy (blocked by provider selection; see Error Scenarios)
 
 ### Cron Schedule Defaults
 
@@ -370,3 +384,4 @@ To be decided:
 | Team domain       | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL              |
 | PII               | Personally Identifiable Information — data that can identify a specific person (e.g., email address) |
 | Hard delete       | Permanent removal of a record from the database; not recoverable                            |
+| Bounce event      | A delivery failure notification indicating an email could not be delivered to a specific subscriber |
