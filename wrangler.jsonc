@@ -9,6 +9,11 @@
       "custom_domain": true
     }
   ],
+  "vars": {
+    "CF_ACCESS_TEAM_NAME": "",
+    "CF_ACCESS_AUD": "",
+    "DISABLE_AUTH": ""
+  },
   "observability": {
     "enabled": true
   }

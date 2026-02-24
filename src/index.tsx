@@ -4,12 +4,16 @@ import {
   createStaticRouter,
   StaticRouterProvider,
 } from "react-router";
+import { adminAuth } from "./middleware/adminAuth";
 import { renderer } from "./renderer";
 import { routes } from "./routes";
 
-const app = new Hono();
+const app = new Hono<{ Bindings: Env }>();
 
 app.use(renderer);
+
+app.use("/admin/*", adminAuth);
+app.use("/admin", adminAuth);
 
 const { query, dataRoutes } = createStaticHandler(routes);
 
