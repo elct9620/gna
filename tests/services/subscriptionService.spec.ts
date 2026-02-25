@@ -15,7 +15,8 @@ describe("SubscriptionService", () => {
       expect(result.action).toBe("created");
       expect(result.subscriber.email).toBe("test@example.com");
       expect(result.subscriber.nickname).toBe("Test");
-      expect(result.subscriber.activatedAt).toBeNull();
+      expect(result.subscriber.isPending).toBe(true);
+      expect(result.subscriber.status).toBe("pending");
       expect(result.subscriber.confirmationToken).toBeTruthy();
     });
 
@@ -51,7 +52,8 @@ describe("SubscriptionService", () => {
       const result = service.confirmSubscription(subscriber.confirmationToken!);
 
       expect(result).not.toBeNull();
-      expect(result!.activatedAt).toBeInstanceOf(Date);
+      expect(result!.isActivated).toBe(true);
+      expect(result!.status).toBe("activated");
       expect(result!.confirmationToken).toBeNull();
     });
 

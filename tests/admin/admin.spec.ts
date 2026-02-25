@@ -148,7 +148,7 @@ describe("GET /admin/api/subscribers", () => {
     const subscriber = data.subscribers.find(
       (s) => s.email === "pending@example.com",
     );
-    expect(subscriber?.status).toBe("Pending");
+    expect(subscriber?.status).toBe("pending");
   });
 
   it("should return status 'Activated' for confirmed subscriber", async () => {
@@ -180,7 +180,7 @@ describe("GET /admin/api/subscribers", () => {
     const subscriber = data.subscribers.find(
       (s) => s.email === "active@example.com",
     );
-    expect(subscriber?.status).toBe("Activated");
+    expect(subscriber?.status).toBe("activated");
   });
 });
 

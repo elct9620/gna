@@ -1,17 +1,8 @@
 import { injectable } from "tsyringe";
 
-export interface Subscriber {
-  email: string;
-  nickname?: string;
-  token: string;
-  subscribedAt: Date;
-  activatedAt: Date | null;
-  confirmationToken: string | null;
-  magicLinkToken: string | null;
-  magicLinkExpiresAt: Date | null;
-  pendingEmail: string | null;
-  emailConfirmationToken: string | null;
-}
+import { Subscriber, type SubscriberData } from "@/entities/subscriber";
+
+export { Subscriber };
 
 export type SubscribeAction = "created" | "resend" | "none";
 
@@ -25,11 +16,15 @@ const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 
 @injectable()
 export class SubscriptionService {
-  private subscribers = new Map<string, Subscriber>();
+  private subscribers = new Map<string, SubscriberData>();
   private tokenIndex = new Map<string, string>();
   private confirmationTokenIndex = new Map<string, string>();
   private magicLinkTokenIndex = new Map<string, string>();
   private emailConfirmationTokenIndex = new Map<string, string>();
+
+  private toEntity(data: SubscriberData): Subscriber {
+    return new Subscriber(data);
+  }
 
   subscribe(email: string, nickname?: string): SubscribeResult {
     if (!email || !EMAIL_REGEX.test(email)) {
@@ -39,7 +34,7 @@ export class SubscriptionService {
     const existing = this.subscribers.get(email);
     if (existing) {
       if (existing.activatedAt) {
-        return { subscriber: existing, action: "none" };
+        return { subscriber: this.toEntity(existing), action: "none" };
       }
 
       if (existing.confirmationToken) {
@@ -48,12 +43,12 @@ export class SubscriptionService {
       const newToken = crypto.randomUUID();
       existing.confirmationToken = newToken;
       this.confirmationTokenIndex.set(newToken, email);
-      return { subscriber: existing, action: "resend" };
+      return { subscriber: this.toEntity(existing), action: "resend" };
     }
 
     const token = crypto.randomUUID();
     const confirmationToken = crypto.randomUUID();
-    const subscriber: Subscriber = {
+    const data: SubscriberData = {
       email,
       nickname,
       token,
@@ -66,38 +61,38 @@ export class SubscriptionService {
       emailConfirmationToken: null,
     };
 
-    this.subscribers.set(email, subscriber);
+    this.subscribers.set(email, data);
     this.tokenIndex.set(token, email);
     this.confirmationTokenIndex.set(confirmationToken, email);
 
-    return { subscriber, action: "created" };
+    return { subscriber: this.toEntity(data), action: "created" };
   }
 
   confirmSubscription(token: string): Subscriber | null {
     const email = this.confirmationTokenIndex.get(token);
     if (!email) return null;
 
-    const subscriber = this.subscribers.get(email);
-    if (!subscriber) return null;
+    const data = this.subscribers.get(email);
+    if (!data) return null;
 
-    subscriber.activatedAt = new Date();
+    data.activatedAt = new Date();
     this.confirmationTokenIndex.delete(token);
-    subscriber.confirmationToken = null;
+    data.confirmationToken = null;
 
-    return subscriber;
+    return this.toEntity(data);
   }
 
   requestMagicLink(email: string): string | null {
-    const subscriber = this.subscribers.get(email);
-    if (!subscriber || !subscriber.activatedAt) return null;
+    const data = this.subscribers.get(email);
+    if (!data || !data.activatedAt) return null;
 
-    if (subscriber.magicLinkToken) {
-      this.magicLinkTokenIndex.delete(subscriber.magicLinkToken);
+    if (data.magicLinkToken) {
+      this.magicLinkTokenIndex.delete(data.magicLinkToken);
     }
 
     const token = crypto.randomUUID();
-    subscriber.magicLinkToken = token;
-    subscriber.magicLinkExpiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS);
+    data.magicLinkToken = token;
+    data.magicLinkExpiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS);
     this.magicLinkTokenIndex.set(token, email);
 
     return token;
@@ -107,56 +102,51 @@ export class SubscriptionService {
     const email = this.magicLinkTokenIndex.get(token);
     if (!email) return null;
 
-    const subscriber = this.subscribers.get(email);
-    if (!subscriber) return null;
+    const data = this.subscribers.get(email);
+    if (!data) return null;
 
-    if (
-      !subscriber.magicLinkExpiresAt ||
-      subscriber.magicLinkExpiresAt < new Date()
-    ) {
+    if (!data.magicLinkExpiresAt || data.magicLinkExpiresAt < new Date()) {
       this.magicLinkTokenIndex.delete(token);
-      subscriber.magicLinkToken = null;
-      subscriber.magicLinkExpiresAt = null;
+      data.magicLinkToken = null;
+      data.magicLinkExpiresAt = null;
       return null;
     }
 
-    return subscriber;
+    return this.toEntity(data);
   }
 
   consumeMagicLink(token: string): void {
     const email = this.magicLinkTokenIndex.get(token);
     if (!email) return;
 
-    const subscriber = this.subscribers.get(email);
-    if (subscriber) {
-      subscriber.magicLinkToken = null;
-      subscriber.magicLinkExpiresAt = null;
+    const data = this.subscribers.get(email);
+    if (data) {
+      data.magicLinkToken = null;
+      data.magicLinkExpiresAt = null;
     }
 
     this.magicLinkTokenIndex.delete(token);
   }
 
   updateNickname(email: string, nickname: string): boolean {
-    const subscriber = this.subscribers.get(email);
-    if (!subscriber) return false;
+    const data = this.subscribers.get(email);
+    if (!data) return false;
 
-    subscriber.nickname = nickname;
+    data.nickname = nickname;
     return true;
   }
 
   requestEmailChange(email: string, newEmail: string): string | null {
-    const subscriber = this.subscribers.get(email);
-    if (!subscriber) return null;
+    const data = this.subscribers.get(email);
+    if (!data) return null;
 
-    if (subscriber.emailConfirmationToken) {
-      this.emailConfirmationTokenIndex.delete(
-        subscriber.emailConfirmationToken,
-      );
+    if (data.emailConfirmationToken) {
+      this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
     }
 
     const token = crypto.randomUUID();
-    subscriber.pendingEmail = newEmail;
-    subscriber.emailConfirmationToken = token;
+    data.pendingEmail = newEmail;
+    data.emailConfirmationToken = token;
     this.emailConfirmationTokenIndex.set(token, email);
 
     return token;
@@ -166,28 +156,28 @@ export class SubscriptionService {
     const currentEmail = this.emailConfirmationTokenIndex.get(token);
     if (!currentEmail) return null;
 
-    const subscriber = this.subscribers.get(currentEmail);
-    if (!subscriber || !subscriber.pendingEmail) return null;
+    const data = this.subscribers.get(currentEmail);
+    if (!data || !data.pendingEmail) return null;
 
-    const newEmail = subscriber.pendingEmail;
+    const newEmail = data.pendingEmail;
 
     // Update indexes
     this.subscribers.delete(currentEmail);
-    if (subscriber.token) {
-      this.tokenIndex.set(subscriber.token, newEmail);
+    if (data.token) {
+      this.tokenIndex.set(data.token, newEmail);
     }
-    if (subscriber.magicLinkToken) {
-      this.magicLinkTokenIndex.set(subscriber.magicLinkToken, newEmail);
+    if (data.magicLinkToken) {
+      this.magicLinkTokenIndex.set(data.magicLinkToken, newEmail);
     }
 
-    subscriber.email = newEmail;
-    subscriber.pendingEmail = null;
+    data.email = newEmail;
+    data.pendingEmail = null;
     this.emailConfirmationTokenIndex.delete(token);
-    subscriber.emailConfirmationToken = null;
+    data.emailConfirmationToken = null;
 
-    this.subscribers.set(newEmail, subscriber);
+    this.subscribers.set(newEmail, data);
 
-    return subscriber;
+    return this.toEntity(data);
   }
 
   isEmailTaken(email: string): boolean {
@@ -195,26 +185,26 @@ export class SubscriptionService {
   }
 
   listSubscribers(): Subscriber[] {
-    return Array.from(this.subscribers.values());
+    return Array.from(this.subscribers.values()).map((data) =>
+      this.toEntity(data),
+    );
   }
 
   removeSubscriber(email: string): boolean {
-    const subscriber = this.subscribers.get(email);
-    if (!subscriber) {
+    const data = this.subscribers.get(email);
+    if (!data) {
       return false;
     }
 
-    this.tokenIndex.delete(subscriber.token);
-    if (subscriber.confirmationToken) {
-      this.confirmationTokenIndex.delete(subscriber.confirmationToken);
+    this.tokenIndex.delete(data.token);
+    if (data.confirmationToken) {
+      this.confirmationTokenIndex.delete(data.confirmationToken);
     }
-    if (subscriber.magicLinkToken) {
-      this.magicLinkTokenIndex.delete(subscriber.magicLinkToken);
+    if (data.magicLinkToken) {
+      this.magicLinkTokenIndex.delete(data.magicLinkToken);
     }
-    if (subscriber.emailConfirmationToken) {
-      this.emailConfirmationTokenIndex.delete(
-        subscriber.emailConfirmationToken,
-      );
+    if (data.emailConfirmationToken) {
+      this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
     }
     this.subscribers.delete(email);
     return true;
@@ -226,18 +216,16 @@ export class SubscriptionService {
       return;
     }
 
-    const subscriber = this.subscribers.get(email);
-    if (subscriber) {
-      if (subscriber.confirmationToken) {
-        this.confirmationTokenIndex.delete(subscriber.confirmationToken);
+    const data = this.subscribers.get(email);
+    if (data) {
+      if (data.confirmationToken) {
+        this.confirmationTokenIndex.delete(data.confirmationToken);
       }
-      if (subscriber.magicLinkToken) {
-        this.magicLinkTokenIndex.delete(subscriber.magicLinkToken);
+      if (data.magicLinkToken) {
+        this.magicLinkTokenIndex.delete(data.magicLinkToken);
       }
-      if (subscriber.emailConfirmationToken) {
-        this.emailConfirmationTokenIndex.delete(
-          subscriber.emailConfirmationToken,
-        );
+      if (data.emailConfirmationToken) {
+        this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
       }
     }
 

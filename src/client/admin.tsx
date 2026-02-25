@@ -89,12 +89,13 @@ export function Admin() {
                     <TableCell>
                       <Badge
                         variant={
-                          subscriber.status === "Activated"
+                          subscriber.status === "activated"
                             ? "default"
                             : "secondary"
                         }
                       >
-                        {subscriber.status}
+                        {subscriber.status.charAt(0).toUpperCase() +
+                          subscriber.status.slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell>
