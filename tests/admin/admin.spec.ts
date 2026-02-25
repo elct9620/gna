@@ -1,6 +1,9 @@
 import { env } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { container } from "@/container";
+import { EmailSender } from "@/services/emailSender";
 import app from "@/index";
+import { MockEmailSender } from "../helpers/mockEmailSender";
 
 const authBypass = { ...env, DISABLE_AUTH: "true" };
 
@@ -54,7 +57,12 @@ describe("GET /admin", () => {
       const res = await app.request(
         "/admin",
         { headers: { "Cf-Access-Jwt-Assertion": "some-token" } },
-        { ...env, DISABLE_AUTH: "", CF_ACCESS_TEAM_NAME: "", CF_ACCESS_AUD: "test-aud" },
+        {
+          ...env,
+          DISABLE_AUTH: "",
+          CF_ACCESS_TEAM_NAME: "",
+          CF_ACCESS_AUD: "test-aud",
+        },
       );
       expect(res.status).toBe(500);
       expect(await res.json()).toEqual({ error: "Server misconfiguration" });
@@ -64,7 +72,12 @@ describe("GET /admin", () => {
       const res = await app.request(
         "/admin",
         { headers: { "Cf-Access-Jwt-Assertion": "some-token" } },
-        { ...env, DISABLE_AUTH: "", CF_ACCESS_TEAM_NAME: "myteam", CF_ACCESS_AUD: "" },
+        {
+          ...env,
+          DISABLE_AUTH: "",
+          CF_ACCESS_TEAM_NAME: "myteam",
+          CF_ACCESS_AUD: "",
+        },
       );
       expect(res.status).toBe(500);
       expect(await res.json()).toEqual({ error: "Server misconfiguration" });
@@ -73,6 +86,12 @@ describe("GET /admin", () => {
 });
 
 describe("GET /admin/api/subscribers", () => {
+  beforeEach(() => {
+    container.register(EmailSender, {
+      useValue: new MockEmailSender() as unknown as EmailSender,
+    });
+  });
+
   it("should return empty subscribers list", async () => {
     const res = await app.request("/admin/api/subscribers", {}, authBypass);
     expect(res.status).toBe(200);
@@ -93,7 +112,13 @@ describe("GET /admin/api/subscribers", () => {
     const res = await app.request("/admin/api/subscribers", {}, authBypass);
     expect(res.status).toBe(200);
 
-    const data = await res.json<{ subscribers: Array<{ email: string; nickname: string; subscribedAt: string }> }>();
+    const data = await res.json<{
+      subscribers: Array<{
+        email: string;
+        nickname: string;
+        subscribedAt: string;
+      }>;
+    }>();
     expect(data.subscribers).toHaveLength(1);
     expect(data.subscribers[0].email).toBe("test@example.com");
     expect(data.subscribers[0].nickname).toBe("Test");
@@ -102,6 +127,12 @@ describe("GET /admin/api/subscribers", () => {
 });
 
 describe("DELETE /admin/api/subscribers/:email", () => {
+  beforeEach(() => {
+    container.register(EmailSender, {
+      useValue: new MockEmailSender() as unknown as EmailSender,
+    });
+  });
+
   it("should remove an existing subscriber", async () => {
     await app.request(
       "/api/subscribe",
@@ -122,8 +153,12 @@ describe("DELETE /admin/api/subscribers/:email", () => {
     expect(await res.json()).toEqual({ message: "Subscriber removed" });
 
     const listRes = await app.request("/admin/api/subscribers", {}, authBypass);
-    const data = await listRes.json<{ subscribers: Array<{ email: string }> }>();
-    expect(data.subscribers.find((s) => s.email === "remove@example.com")).toBeUndefined();
+    const data = await listRes.json<{
+      subscribers: Array<{ email: string }>;
+    }>();
+    expect(
+      data.subscribers.find((s) => s.email === "remove@example.com"),
+    ).toBeUndefined();
   });
 
   it("should return 404 for non-existent subscriber", async () => {

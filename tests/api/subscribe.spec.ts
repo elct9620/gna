@@ -1,9 +1,21 @@
 import { env } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { container } from "@/container";
+import { EmailSender } from "@/services/emailSender";
 import app from "@/index";
+import { MockEmailSender } from "../helpers/mockEmailSender";
 
 describe("POST /api/subscribe", () => {
-  it("should return 201 on successful subscription", async () => {
+  let mockEmailSender: MockEmailSender;
+
+  beforeEach(() => {
+    mockEmailSender = new MockEmailSender();
+    container.register(EmailSender, {
+      useValue: mockEmailSender as unknown as EmailSender,
+    });
+  });
+
+  it("should return 201 with confirmation_sent status", async () => {
     const res = await app.request(
       "/api/subscribe",
       {
@@ -14,27 +26,50 @@ describe("POST /api/subscribe", () => {
       env,
     );
     expect(res.status).toBe(201);
-    const body = await res.json();
-    expect(body).toHaveProperty("message");
+    const body = await res.json<{ status: string }>();
+    expect(body.status).toBe("confirmation_sent");
   });
 
-  it("should return 201 on duplicate email (idempotent)", async () => {
+  it("should send confirmation email on new subscription", async () => {
+    await app.request(
+      "/api/subscribe",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "email-test@example.com" }),
+      },
+      env,
+    );
+
+    expect(mockEmailSender.sentEmails).toHaveLength(1);
+    expect(mockEmailSender.sentEmails[0].to).toEqual([
+      "email-test@example.com",
+    ]);
+    expect(mockEmailSender.sentEmails[0].subject).toBe(
+      "Confirm your subscription",
+    );
+  });
+
+  it("should resend confirmation for duplicate pending email", async () => {
     const payload = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: "duplicate@example.com" }),
+      body: JSON.stringify({ email: "dup@example.com" }),
     };
     await app.request("/api/subscribe", payload, env);
+    mockEmailSender.reset();
+
     const res = await app.request(
       "/api/subscribe",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "duplicate@example.com" }),
+        body: JSON.stringify({ email: "dup@example.com" }),
       },
       env,
     );
     expect(res.status).toBe(201);
+    expect(mockEmailSender.sentEmails).toHaveLength(1);
   });
 
   it("should return 400 when email is missing", async () => {

@@ -12,6 +12,7 @@
   "vars": {
     "AWS_REGION": "ap-northeast-1",
     "FROM_ADDRESS": "noreply@aotoki.me",
+    "BASE_URL": "https://gna.aotoki.me",
   },
   "observability": {
     "enabled": true,
