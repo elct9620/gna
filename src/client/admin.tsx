@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { InferResponseType } from "hono/client";
 
 import {
   AlertDialog,
@@ -28,19 +29,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { client } from "./api";
 
-interface Subscriber {
-  email: string;
-  nickname?: string;
-  status: string;
-}
+type Subscriber = InferResponseType<
+  typeof client.admin.api.subscribers.$get
+>["subscribers"][number];
 
 export function Admin() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
 
   useEffect(() => {
-    fetch("/admin/api/subscribers")
-      .then((res) => res.json<{ subscribers: Subscriber[] }>())
+    client.admin.api.subscribers
+      .$get()
+      .then((res) => res.json())
       .then((data) => setSubscribers(data.subscribers));
   }, []);
 
@@ -119,10 +120,11 @@ export function Admin() {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={async () => {
-                                const res = await fetch(
-                                  `/admin/api/subscribers/${encodeURIComponent(subscriber.email)}`,
-                                  { method: "DELETE" },
-                                );
+                                const res = await client.admin.api.subscribers[
+                                  ":email"
+                                ].$delete({
+                                  param: { email: subscriber.email },
+                                });
 
                                 if (res.ok) {
                                   setSubscribers((prev) =>

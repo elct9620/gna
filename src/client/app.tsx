@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { client } from "./api";
 
 export function App() {
   const [email, setEmail] = useState("");
@@ -23,17 +24,15 @@ export function App() {
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, nickname: nickname || undefined }),
+      const res = await client.api.subscribe.$post({
+        json: { email, nickname: nickname || undefined },
       });
 
       if (res.ok) {
         setSubmitted(true);
       } else {
-        const body = (await res.json()) as { error?: string };
-        setError(body.error || "Something went wrong");
+        const body = await res.json();
+        setError("error" in body ? body.error : "Something went wrong");
       }
     } catch {
       setError("Something went wrong");
