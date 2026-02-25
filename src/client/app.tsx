@@ -13,13 +13,12 @@ import { Label } from "@/components/ui/label";
 export function App() {
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
-  const [message, setMessage] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setMessage("");
     setError("");
     setSubmitting(true);
 
@@ -31,9 +30,7 @@ export function App() {
       });
 
       if (res.ok) {
-        setMessage("Subscribed successfully!");
-        setEmail("");
-        setNickname("");
+        setSubmitted(true);
       } else {
         const body = (await res.json()) as { error?: string };
         setError(body.error || "Something went wrong");
@@ -44,6 +41,25 @@ export function App() {
       setSubmitting(false);
     }
   };
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+        <title>Check Your Inbox - Gna</title>
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Check Your Inbox</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              We've sent a confirmation email to your inbox. Please click the
+              link in the email to complete your subscription.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
@@ -81,7 +97,6 @@ export function App() {
             <Button type="submit" disabled={submitting}>
               {submitting ? "Subscribing..." : "Subscribe"}
             </Button>
-            {message && <p className="text-sm text-green-600">{message}</p>}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </form>
         </CardContent>
