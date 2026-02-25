@@ -3,6 +3,45 @@ import { EmailRenderer } from "./emailRenderer";
 import { EmailSender } from "./emailSender";
 import { BaseEmail, type BaseEmailProps } from "@/emails/baseEmail";
 
+interface EmailTemplateConfig {
+  subject: string;
+  previewText: string;
+  heading: string;
+  bodyText: string;
+  actionText: string;
+  actionPath: string;
+}
+
+const EMAIL_TEMPLATES: Record<string, EmailTemplateConfig> = {
+  confirmation: {
+    subject: "Confirm your subscription",
+    previewText: "Please confirm your newsletter subscription",
+    heading: "Confirm Your Subscription",
+    bodyText:
+      "Thank you for subscribing! Click the button below to confirm your subscription.",
+    actionText: "Confirm Subscription",
+    actionPath: "/confirm",
+  },
+  magic_link: {
+    subject: "Your profile access link",
+    previewText: "Access your subscriber profile",
+    heading: "Your Profile Access Link",
+    bodyText:
+      "Click the button below to access your subscriber profile. This link expires in 15 minutes.",
+    actionText: "Access Profile",
+    actionPath: "/profile",
+  },
+  email_change: {
+    subject: "Confirm your email change",
+    previewText: "Confirm your email address change",
+    heading: "Confirm Email Change",
+    bodyText:
+      "Click the button below to confirm your new email address for the newsletter.",
+    actionText: "Confirm Email Change",
+    actionPath: "/confirm",
+  },
+};
+
 export class NotificationService {
   constructor(
     private emailRenderer: EmailRenderer,
@@ -30,91 +69,65 @@ export class NotificationService {
     });
   }
 
+  private buildProps(
+    template: EmailTemplateConfig,
+    token: string,
+  ): BaseEmailProps {
+    return {
+      previewText: template.previewText,
+      heading: template.heading,
+      bodyText: template.bodyText,
+      actionUrl: `${this.baseUrl}${template.actionPath}?token=${token}`,
+      actionText: template.actionText,
+    };
+  }
+
   async sendConfirmationEmail(
     email: string,
     confirmationToken: string,
   ): Promise<void> {
-    await this.renderAndSend(email, "Confirm your subscription", {
-      previewText: "Please confirm your newsletter subscription",
-      heading: "Confirm Your Subscription",
-      bodyText:
-        "Thank you for subscribing! Click the button below to confirm your subscription.",
-      actionUrl: `${this.baseUrl}/confirm?token=${confirmationToken}`,
-      actionText: "Confirm Subscription",
-    });
+    const template = EMAIL_TEMPLATES.confirmation;
+    await this.renderAndSend(
+      email,
+      template.subject,
+      this.buildProps(template, confirmationToken),
+    );
   }
 
   async sendMagicLinkEmail(
     email: string,
     magicLinkToken: string,
   ): Promise<void> {
-    await this.renderAndSend(email, "Your profile access link", {
-      previewText: "Access your subscriber profile",
-      heading: "Your Profile Access Link",
-      bodyText:
-        "Click the button below to access your subscriber profile. This link expires in 15 minutes.",
-      actionUrl: `${this.baseUrl}/profile?token=${magicLinkToken}`,
-      actionText: "Access Profile",
-    });
+    const template = EMAIL_TEMPLATES.magic_link;
+    await this.renderAndSend(
+      email,
+      template.subject,
+      this.buildProps(template, magicLinkToken),
+    );
   }
 
   async sendEmailChangeConfirmation(
     email: string,
     emailConfirmationToken: string,
   ): Promise<void> {
-    await this.renderAndSend(email, "Confirm your email change", {
-      previewText: "Confirm your email address change",
-      heading: "Confirm Email Change",
-      bodyText:
-        "Click the button below to confirm your new email address for the newsletter.",
-      actionUrl: `${this.baseUrl}/confirm?token=${emailConfirmationToken}`,
-      actionText: "Confirm Email Change",
-    });
+    const template = EMAIL_TEMPLATES.email_change;
+    await this.renderAndSend(
+      email,
+      template.subject,
+      this.buildProps(template, emailConfirmationToken),
+    );
   }
 
   async sendTestTemplateEmail(template: string, to: string): Promise<void> {
-    const demoData: Record<string, { subject: string; props: BaseEmailProps }> =
-      {
-        confirmation: {
-          subject: "Confirm your subscription",
-          props: {
-            previewText: "Please confirm your newsletter subscription",
-            heading: "Confirm Your Subscription",
-            bodyText:
-              "Thank you for subscribing! Click the button below to confirm your subscription.",
-            actionUrl: `${this.baseUrl}/confirm?token=test-token-example`,
-            actionText: "Confirm Subscription",
-          },
-        },
-        magic_link: {
-          subject: "Your profile access link",
-          props: {
-            previewText: "Access your subscriber profile",
-            heading: "Your Profile Access Link",
-            bodyText:
-              "Click the button below to access your subscriber profile. This link expires in 15 minutes.",
-            actionUrl: `${this.baseUrl}/profile?token=test-token-example`,
-            actionText: "Access Profile",
-          },
-        },
-        email_change: {
-          subject: "Confirm your email change",
-          props: {
-            previewText: "Confirm your email address change",
-            heading: "Confirm Email Change",
-            bodyText:
-              "Click the button below to confirm your new email address for the newsletter.",
-            actionUrl: `${this.baseUrl}/confirm?token=test-token-example`,
-            actionText: "Confirm Email Change",
-          },
-        },
-      };
-
-    const data = demoData[template];
-    if (!data) {
+    const config = EMAIL_TEMPLATES[template];
+    if (!config) {
       throw new Error(`Unknown template: ${template}`);
     }
 
-    await this.renderAndSend(to, `[TEST] ${data.subject}`, data.props);
+    await this.renderAndSend(
+      to,
+      `[TEST] ${config.subject}`,
+      this.buildProps(config, "test-token-example"),
+    );
   }
 }

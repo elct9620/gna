@@ -3,6 +3,7 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 
 import { subscribers } from "@/db/schema";
 import { Subscriber } from "@/entities/subscriber";
+import { EMAIL_REGEX } from "@/lib/validation";
 
 export type SubscribeAction = "created" | "resend" | "none";
 
@@ -11,7 +12,11 @@ export interface SubscribeResult {
   action: SubscribeAction;
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export interface UpdateProfileResult {
+  error?: "invalid_token" | "email_taken";
+  emailChangeToken?: string;
+}
+
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -54,28 +59,39 @@ export class SubscriptionService {
         return { subscriber: this.toEntity(existing), action: "none" };
       }
 
-      const newToken = crypto.randomUUID();
-      const expiresAt = new Date(
-        Date.now() + CONFIRMATION_TTL_MS,
-      ).toISOString();
-      await this.db
-        .update(subscribers)
-        .set({
-          confirmationToken: newToken,
-          confirmationExpiresAt: expiresAt,
-        })
-        .where(eq(subscribers.email, email));
-
-      return {
-        subscriber: this.toEntity({
-          ...existing,
-          confirmationToken: newToken,
-          confirmationExpiresAt: expiresAt,
-        }),
-        action: "resend",
-      };
+      return this.resendConfirmation(existing);
     }
 
+    return this.createSubscriber(email, nickname);
+  }
+
+  private async resendConfirmation(
+    existing: typeof subscribers.$inferSelect,
+  ): Promise<SubscribeResult> {
+    const newToken = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+    await this.db
+      .update(subscribers)
+      .set({
+        confirmationToken: newToken,
+        confirmationExpiresAt: expiresAt,
+      })
+      .where(eq(subscribers.email, existing.email));
+
+    return {
+      subscriber: this.toEntity({
+        ...existing,
+        confirmationToken: newToken,
+        confirmationExpiresAt: expiresAt,
+      }),
+      action: "resend",
+    };
+  }
+
+  private async createSubscriber(
+    email: string,
+    nickname?: string,
+  ): Promise<SubscribeResult> {
     const unsubscribeToken = crypto.randomUUID();
     const confirmationToken = crypto.randomUUID();
     const confirmationExpiresAt = new Date(
@@ -189,6 +205,42 @@ export class SubscriptionService {
         magicLinkExpiresAt: null,
       })
       .where(eq(subscribers.magicLinkToken, token));
+  }
+
+  async updateProfile(
+    token: string,
+    updates: { nickname?: string; email?: string },
+  ): Promise<UpdateProfileResult> {
+    const subscriber = await this.validateMagicLink(token);
+    if (!subscriber) {
+      return { error: "invalid_token" };
+    }
+
+    if (updates.email && updates.email !== subscriber.email) {
+      if (await this.isEmailTaken(updates.email)) {
+        return { error: "email_taken" };
+      }
+    }
+
+    await this.consumeMagicLink(token);
+
+    if (updates.nickname !== undefined) {
+      await this.updateNickname(subscriber.email, updates.nickname);
+    }
+
+    const result: UpdateProfileResult = {};
+
+    if (updates.email && updates.email !== subscriber.email) {
+      const emailToken = await this.requestEmailChange(
+        subscriber.email,
+        updates.email,
+      );
+      if (emailToken) {
+        result.emailChangeToken = emailToken;
+      }
+    }
+
+    return result;
   }
 
   async updateNickname(email: string, nickname: string): Promise<boolean> {

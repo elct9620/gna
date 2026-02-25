@@ -45,32 +45,24 @@ const app = new Hono()
     }
 
     const service = container.resolve(SubscriptionService);
-    const subscriber = await service.validateMagicLink(body.token);
-    if (!subscriber) {
+    const result = await service.updateProfile(body.token, {
+      nickname: body.nickname,
+      email: body.email,
+    });
+
+    if (result.error === "invalid_token") {
       return c.json({ error: "Invalid or expired token" }, 401);
     }
-
-    if (body.email && body.email !== subscriber.email) {
-      if (await service.isEmailTaken(body.email)) {
-        return c.json({ error: "Email already in use" }, 409);
-      }
+    if (result.error === "email_taken") {
+      return c.json({ error: "Email already in use" }, 409);
     }
 
-    await service.consumeMagicLink(body.token);
-
-    if (body.nickname !== undefined) {
-      await service.updateNickname(subscriber.email, body.nickname);
-    }
-
-    if (body.email && body.email !== subscriber.email) {
-      const emailToken = await service.requestEmailChange(
-        subscriber.email,
+    if (result.emailChangeToken && body.email) {
+      const notification = container.resolve(NotificationService);
+      await notification.sendEmailChangeConfirmation(
         body.email,
+        result.emailChangeToken,
       );
-      if (emailToken) {
-        const notification = container.resolve(NotificationService);
-        await notification.sendEmailChangeConfirmation(body.email, emailToken);
-      }
     }
 
     return c.json({ status: "updated" }, 200);

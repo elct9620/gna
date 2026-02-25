@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CenteredCard } from "@/components/centeredCard";
 import { client } from "./api";
 
 type ProfileState =
@@ -87,133 +81,105 @@ export function Profile() {
 
   if (emailChanged === "true") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <>
         <title>Profile - Gna</title>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Email Updated</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Your email address has been updated successfully.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <CenteredCard title="Email Updated">
+          <p className="text-muted-foreground">
+            Your email address has been updated successfully.
+          </p>
+        </CenteredCard>
+      </>
     );
   }
 
   if (state.status === "idle") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <>
         <title>Profile - Gna</title>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Subscriber Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Request a profile link from the newsletter to manage your
-              subscription settings.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <CenteredCard title="Subscriber Profile">
+          <p className="text-muted-foreground">
+            Request a profile link from the newsletter to manage your
+            subscription settings.
+          </p>
+        </CenteredCard>
+      </>
     );
   }
 
   if (state.status === "loading") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <>
         <title>Profile - Gna</title>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Subscriber Profile</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Loading your profile...</p>
-          </CardContent>
-        </Card>
-      </div>
+        <CenteredCard title="Subscriber Profile">
+          <p className="text-muted-foreground">Loading your profile...</p>
+        </CenteredCard>
+      </>
     );
   }
 
   if (state.status === "error") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <>
         <title>Profile - Gna</title>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Profile Link Invalid</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              {state.message} Please request a new profile link from the
-              newsletter.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <CenteredCard title="Profile Link Invalid">
+          <p className="text-muted-foreground">
+            {state.message} Please request a new profile link from the
+            newsletter.
+          </p>
+        </CenteredCard>
+      </>
     );
   }
 
   if (state.status === "updated") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <>
         <title>Profile - Gna</title>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Profile Updated</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Your profile has been updated successfully.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <CenteredCard title="Profile Updated">
+          <p className="text-muted-foreground">
+            Your profile has been updated successfully.
+          </p>
+        </CenteredCard>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+    <>
       <title>Profile - Gna</title>
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Subscriber Profile</CardTitle>
-          <CardDescription>Update your subscription settings.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="nickname">Nickname</Label>
-              <Input
-                id="nickname"
-                type="text"
-                placeholder="Your name"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-              />
-            </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving..." : "Save Changes"}
-            </Button>
-            {submitError && (
-              <p className="text-sm text-destructive">{submitError}</p>
-            )}
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+      <CenteredCard
+        title="Subscriber Profile"
+        description="Update your subscription settings."
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="nickname">Nickname</Label>
+            <Input
+              id="nickname"
+              type="text"
+              placeholder="Your name"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Saving..." : "Save Changes"}
+          </Button>
+          {submitError && (
+            <p className="text-sm text-destructive">{submitError}</p>
+          )}
+        </form>
+      </CenteredCard>
+    </>
   );
 }

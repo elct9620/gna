@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { container } from "@/container";
+import { EMAIL_REGEX } from "@/lib/validation";
 import { NotificationService } from "@/services/notificationService";
 import { SubscriptionService } from "@/services/subscriptionService";
 
 const VALID_TEMPLATES = ["confirmation", "magic_link", "email_change"] as const;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const app = new Hono()
   .get("/subscribers", async (c) => {

@@ -1,14 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CenteredCard } from "@/components/centeredCard";
 import { client } from "./api";
 
 export function App() {
@@ -43,63 +37,53 @@ export function App() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+      <>
         <title>Check Your Inbox - Gna</title>
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Check Your Inbox</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              We've sent a confirmation email to your inbox. Please click the
-              link in the email to complete your subscription.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <CenteredCard title="Check Your Inbox">
+          <p className="text-muted-foreground">
+            We've sent a confirmation email to your inbox. Please click the link
+            in the email to complete your subscription.
+          </p>
+        </CenteredCard>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
+    <>
       <title>Gna Newsletter</title>
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Subscribe to Newsletter</CardTitle>
-          <CardDescription>
-            A lightweight, self-hosted newsletter platform.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="nickname">Nickname (optional)</Label>
-              <Input
-                id="nickname"
-                type="text"
-                placeholder="Your name"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-              />
-            </div>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Subscribing..." : "Subscribe"}
-            </Button>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+      <CenteredCard
+        title="Subscribe to Newsletter"
+        description="A lightweight, self-hosted newsletter platform."
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="nickname">Nickname (optional)</Label>
+            <Input
+              id="nickname"
+              type="text"
+              placeholder="Your name"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Subscribing..." : "Subscribe"}
+          </Button>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </form>
+      </CenteredCard>
+    </>
   );
 }
