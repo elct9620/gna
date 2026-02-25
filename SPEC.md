@@ -193,6 +193,7 @@ activated ──(admin remove)──▶ deleted
 | `email`             | Yes      | Subscriber's email address                                             |
 | `nickname`          | No       | Display name for personalization and admin display                     |
 | `unsubscribe_token` | Yes      | Unique token for authenticating unsubscribe                            |
+| `created_at`        | Yes      | Timestamp of record creation (form submission)                         |
 | `activated_at`      | No       | Timestamp of subscription confirmation; `NULL` means not yet activated |
 
 The table above lists core business fields. Additional columns support token storage and profile management (§6): confirmation tokens, magic link authentication, and pending email change. Primary key uses UUIDv7 (TEXT, application-generated); all tokens are embedded in the subscribers table (1:1 relationship); timestamps stored as ISO 8601 TEXT.
