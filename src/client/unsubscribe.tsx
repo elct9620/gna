@@ -1,10 +1,5 @@
 import { useSearchParams } from "react-router";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function Unsubscribe() {
   const [searchParams] = useSearchParams();

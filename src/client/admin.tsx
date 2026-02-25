@@ -84,9 +84,7 @@ export function Admin() {
                 subscribers.map((subscriber) => (
                   <TableRow key={subscriber.email}>
                     <TableCell>{subscriber.email}</TableCell>
-                    <TableCell>
-                      {subscriber.nickname ?? "\u2014"}
-                    </TableCell>
+                    <TableCell>{subscriber.nickname ?? "\u2014"}</TableCell>
                     <TableCell>
                       {new Date(subscriber.subscribedAt).toLocaleDateString()}
                     </TableCell>
@@ -103,9 +101,8 @@ export function Admin() {
                               Remove subscriber
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to remove{" "}
-                              {subscriber.email}? This action cannot be
-                              undone.
+                              Are you sure you want to remove {subscriber.email}
+                              ? This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

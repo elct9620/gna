@@ -13,4 +13,7 @@ const router = createBrowserRouter(routes, {
   hydrationData: window.__staticRouterHydrationData,
 });
 
-hydrateRoot(document.getElementById("root")!, <RouterProvider router={router} />);
+hydrateRoot(
+  document.getElementById("root")!,
+  <RouterProvider router={router} />,
+);

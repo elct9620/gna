@@ -81,9 +81,7 @@ export function App() {
             <Button type="submit" disabled={submitting}>
               {submitting ? "Subscribing..." : "Subscribe"}
             </Button>
-            {message && (
-              <p className="text-sm text-green-600">{message}</p>
-            )}
+            {message && <p className="text-sm text-green-600">{message}</p>}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </form>
         </CardContent>

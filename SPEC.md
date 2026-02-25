@@ -137,27 +137,27 @@ Subscribers can manage their own profile (nickname and email address) through a 
 
 #### Subscribe
 
-| Field              | Rule                                                         |
-| ------------------ | ------------------------------------------------------------ |
-| Endpoint           | `POST /api/subscribe`                                        |
-| Request body       | `{ "email": "<address>", "nickname": "<name>" }` (`nickname` is optional) |
-| CORS               | Allow origins configured per deployment                      |
-| Validation         | Reject syntactically invalid email addresses (RFC 5321 addr-spec); if `nickname` provided, must be 1–50 characters |
-| New subscription   | Create subscriber record with `activated_at = NULL`; generate confirmation token; send confirmation email |
-| Duplicate (active) | Email already activated (`activated_at IS NOT NULL`) — return success without action (idempotent; does not reveal subscription status) |
-| Duplicate (pending)| Email exists but not activated (`activated_at IS NULL`) — regenerate confirmation token and resend confirmation email; return success |
-| Success response   | `201 Created` — `{ "status": "confirmation_sent" }`          |
-| Validation failure | `400 Bad Request` — `{ "error": "<reason>" }`                |
+| Field               | Rule                                                                                                                                   |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Endpoint            | `POST /api/subscribe`                                                                                                                  |
+| Request body        | `{ "email": "<address>", "nickname": "<name>" }` (`nickname` is optional)                                                              |
+| CORS                | Allow origins configured per deployment                                                                                                |
+| Validation          | Reject syntactically invalid email addresses (RFC 5321 addr-spec); if `nickname` provided, must be 1–50 characters                     |
+| New subscription    | Create subscriber record with `activated_at = NULL`; generate confirmation token; send confirmation email                              |
+| Duplicate (active)  | Email already activated (`activated_at IS NOT NULL`) — return success without action (idempotent; does not reveal subscription status) |
+| Duplicate (pending) | Email exists but not activated (`activated_at IS NULL`) — regenerate confirmation token and resend confirmation email; return success  |
+| Success response    | `201 Created` — `{ "status": "confirmation_sent" }`                                                                                    |
+| Validation failure  | `400 Bad Request` — `{ "error": "<reason>" }`                                                                                          |
 
 #### Unsubscribe
 
-| Field                | Rule                                                            |
-| -------------------- | --------------------------------------------------------------- |
-| Endpoint             | `GET /api/unsubscribe?token=<token>`                            |
-| Token                | Unique per-subscriber token, included in every newsletter email |
-| Valid token          | Delete subscriber record; display confirmation page             |
-| Invalid token        | Display error page with contact instructions                    |
-| Token not found      | Display confirmation page (idempotent)                          |
+| Field           | Rule                                                            |
+| --------------- | --------------------------------------------------------------- |
+| Endpoint        | `GET /api/unsubscribe?token=<token>`                            |
+| Token           | Unique per-subscriber token, included in every newsletter email |
+| Valid token     | Delete subscriber record; display confirmation page             |
+| Invalid token   | Display error page with contact instructions                    |
+| Token not found | Display confirmation page (idempotent)                          |
 
 #### Rate Limiting
 
@@ -176,29 +176,29 @@ Subscribers can manage their own profile (nickname and email address) through a 
 active ──(admin remove)──▶ [deleted]
 ```
 
-| State       | Description                                                              |
-| ----------- | ------------------------------------------------------------------------ |
-| `[created]` | Record exists but `activated_at` is `NULL`; awaiting email confirmation  |
-| `active`    | `activated_at IS NOT NULL`; receiving newsletters                        |
-| `[deleted]` | Record removed from the database                                         |
+| State       | Description                                                             |
+| ----------- | ----------------------------------------------------------------------- |
+| `[created]` | Record exists but `activated_at` is `NULL`; awaiting email confirmation |
+| `active`    | `activated_at IS NOT NULL`; receiving newsletters                       |
+| `[deleted]` | Record removed from the database                                        |
 
 #### Subscriber Fields
 
-| Field                | Required | Description                                                            |
-| -------------------- | -------- | ---------------------------------------------------------------------- |
-| `email`              | Yes      | Subscriber's email address                                             |
-| `nickname`           | No       | Display name for personalization and admin display                     |
-| `unsubscribe_token`  | Yes      | Unique token for authenticating unsubscribe                            |
-| `activated_at`       | No       | Timestamp of subscription confirmation; `NULL` means not yet activated |
+| Field               | Required | Description                                                            |
+| ------------------- | -------- | ---------------------------------------------------------------------- |
+| `email`             | Yes      | Subscriber's email address                                             |
+| `nickname`          | No       | Display name for personalization and admin display                     |
+| `unsubscribe_token` | Yes      | Unique token for authenticating unsubscribe                            |
+| `activated_at`      | No       | Timestamp of subscription confirmation; `NULL` means not yet activated |
 
 #### Admin Operations
 
-| Operation        | Behavior                                                                    |
-| ---------------- | --------------------------------------------------------------------------- |
+| Operation        | Behavior                                                                                                    |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- |
 | List subscribers | Paginated list; shows all subscribers (active and pending); displays email, nickname, and activation status |
-| Search           | Filter by email or nickname (partial match)                                 |
-| Remove           | Hard delete from database                                                   |
-| Export           | Download subscriber list as CSV                                             |
+| Search           | Filter by email or nickname (partial match)                                                                 |
+| Remove           | Hard delete from database                                                                                   |
+| Export           | Download subscriber list as CSV                                                                             |
 
 ### 3. RSS Feed Newsletter Generation
 
@@ -214,13 +214,13 @@ active ──(admin remove)──▶ [deleted]
 
 #### Newsletter Generation
 
-| Field             | Rule                                                              |
-| ----------------- | ----------------------------------------------------------------- |
-| Content per entry | Title, summary or excerpt, and link to full article               |
-| Batching          | All new entries since last check are combined into one newsletter |
-| Template          | Render entries into email HTML using a configured template        |
+| Field             | Rule                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Content per entry | Title, summary or excerpt, and link to full article                                                                                   |
+| Batching          | All new entries since last check are combined into one newsletter                                                                     |
+| Template          | Render entries into email HTML using a configured template                                                                            |
 | Personalization   | Template may include subscriber nickname (e.g., "Hi, {nickname}"); fallback to generic greeting (e.g., "Hi") when nickname is not set |
-| Empty batch       | No newsletter generated                                           |
+| Empty batch       | No newsletter generated                                                                                                               |
 
 #### Delivery
 
@@ -236,33 +236,33 @@ active ──(admin remove)──▶ [deleted]
 
 #### JWT Verification
 
-| Field                   | Rule                                                                                                                          |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Method                  | Cloudflare Zero Trust Access                                                                                                  |
-| Protected routes        | All routes under `/admin/*`                                                                                                   |
-| Token source            | `Cf-Access-Jwt-Assertion` request header                                                                                      |
-| Validation              | Verify signature against Cloudflare JWKS endpoint (`https://<team-domain>.cloudflareaccess.com/cdn-cgi/access/certs`)         |
-| Required claims         | `aud` must match the Application Audience (AUD) tag configured in Access; `exp` must be in the future                         |
-| Authenticated request   | Proceed to route handler; user identity available from JWT claims (`email`, `sub`)                                            |
-| Unauthenticated request | `401 Unauthorized` with JSON error body                                                                                       |
-| Invalid or expired token| `403 Forbidden` with JSON error body                                                                                          |
+| Field                    | Rule                                                                                                                  |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| Method                   | Cloudflare Zero Trust Access                                                                                          |
+| Protected routes         | All routes under `/admin/*`                                                                                           |
+| Token source             | `Cf-Access-Jwt-Assertion` request header                                                                              |
+| Validation               | Verify signature against Cloudflare JWKS endpoint (`https://<team-domain>.cloudflareaccess.com/cdn-cgi/access/certs`) |
+| Required claims          | `aud` must match the Application Audience (AUD) tag configured in Access; `exp` must be in the future                 |
+| Authenticated request    | Proceed to route handler; user identity available from JWT claims (`email`, `sub`)                                    |
+| Unauthenticated request  | `401 Unauthorized` with JSON error body                                                                               |
+| Invalid or expired token | `403 Forbidden` with JSON error body                                                                                  |
 
 #### Configuration
 
-| Binding                  | Type     | Description                                                      |
-| ------------------------ | -------- | ---------------------------------------------------------------- |
-| `CF_ACCESS_TEAM_NAME`    | Variable | Cloudflare Access team domain (e.g. `myteam`)                    |
-| `CF_ACCESS_AUD`          | Variable | Application Audience (AUD) tag                                   |
-| `DISABLE_AUTH`           | Variable | Set to `"true"` to bypass authentication (development only)      |
+| Binding               | Type     | Description                                                 |
+| --------------------- | -------- | ----------------------------------------------------------- |
+| `CF_ACCESS_TEAM_NAME` | Variable | Cloudflare Access team domain (e.g. `myteam`)               |
+| `CF_ACCESS_AUD`       | Variable | Application Audience (AUD) tag                              |
+| `DISABLE_AUTH`        | Variable | Set to `"true"` to bypass authentication (development only) |
 
 #### Development Bypass
 
-| Field                | Rule                                                                     |
-| -------------------- | ------------------------------------------------------------------------ |
-| Condition            | `DISABLE_AUTH` variable equals `"true"`                                  |
-| Behavior             | Skip JWT verification; inject a synthetic identity (`dev@localhost`)     |
-| Scope                | All `/admin/*` routes                                                    |
-| Production safeguard | `DISABLE_AUTH` must NOT be set in production wrangler config             |
+| Field                | Rule                                                                 |
+| -------------------- | -------------------------------------------------------------------- |
+| Condition            | `DISABLE_AUTH` variable equals `"true"`                              |
+| Behavior             | Skip JWT verification; inject a synthetic identity (`dev@localhost`) |
+| Scope                | All `/admin/*` routes                                                |
+| Production safeguard | `DISABLE_AUTH` must NOT be set in production wrangler config         |
 
 ### 5. Newsletter Publishing & Scheduling
 
@@ -303,81 +303,81 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 
 #### Magic Link Authentication
 
-| Field                   | Rule                                                                                     |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| Endpoint                | `POST /api/profile/request-link`                                                         |
-| Request body            | `{ "email": "<address>" }`                                                               |
-| Behavior                | Generate a one-time token and send a Magic Link to the provided email address            |
-| Token lifetime          | 15 minutes from creation                                                                 |
-| Token usage             | Single-use; `GET /profile` validates but does not consume; consumed on `POST /api/profile/update` submission; also expires after 15 minutes |
-| Repeat request          | Invalidate any existing unexpired token; issue a new token                               |
-| Email not found or not activated | Return success without sending email (prevent email enumeration; pending subscribers cannot access profile) |
-| Success response        | `200 OK` — `{ "status": "link_sent" }`                                                   |
-| Validation failure      | `400 Bad Request` — `{ "error": "<reason>" }`                                            |
-| Rate limiting           | 3 requests per email per hour; exceeded returns `429 Too Many Requests`                  |
+| Field                            | Rule                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Endpoint                         | `POST /api/profile/request-link`                                                                                                            |
+| Request body                     | `{ "email": "<address>" }`                                                                                                                  |
+| Behavior                         | Generate a one-time token and send a Magic Link to the provided email address                                                               |
+| Token lifetime                   | 15 minutes from creation                                                                                                                    |
+| Token usage                      | Single-use; `GET /profile` validates but does not consume; consumed on `POST /api/profile/update` submission; also expires after 15 minutes |
+| Repeat request                   | Invalidate any existing unexpired token; issue a new token                                                                                  |
+| Email not found or not activated | Return success without sending email (prevent email enumeration; pending subscribers cannot access profile)                                 |
+| Success response                 | `200 OK` — `{ "status": "link_sent" }`                                                                                                      |
+| Validation failure               | `400 Bad Request` — `{ "error": "<reason>" }`                                                                                               |
+| Rate limiting                    | 3 requests per email per hour; exceeded returns `429 Too Many Requests`                                                                     |
 
 #### Profile Page
 
-| Field                   | Rule                                                                          |
-| ----------------------- | ----------------------------------------------------------------------------- |
-| Endpoint                | `GET /profile?token=<magic-link-token>`                                       |
-| Valid token             | Validate token without consuming it; render profile page showing current email and nickname |
-| Invalid or expired token| Display error page prompting subscriber to request a new Magic Link           |
+| Field                    | Rule                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------- |
+| Endpoint                 | `GET /profile?token=<magic-link-token>`                                                     |
+| Valid token              | Validate token without consuming it; render profile page showing current email and nickname |
+| Invalid or expired token | Display error page prompting subscriber to request a new Magic Link                         |
 
 #### Update Profile
 
-| Field                   | Rule                                                                                              |
-| ----------------------- | ------------------------------------------------------------------------------------------------- |
-| Endpoint                | `POST /api/profile/update`                                                                        |
-| Request body            | `{ "token": "<magic-link-token>", "nickname": "<name>", "email": "<new-address>" }` (both fields optional; omitted fields are left unchanged) |
-| Token consumed          | Token is invalidated immediately after successful processing                                      |
-| Nickname validation     | Must be 1–50 characters; no leading or trailing whitespace                                        |
-| Email unchanged         | If `email` matches current address or is omitted, no email confirmation is triggered              |
-| Email already in use    | `409 Conflict` — `{ "error": "Email already registered" }`; checks all subscriber records (active and pending); no fields are updated; token is NOT consumed |
-| Email changed           | Generate email confirmation token and send confirmation email to the new address; nickname update (if provided) still applies immediately |
-| Confirmation token lifetime | 24 hours from creation                                                                        |
-| Repeat submission       | Since token is consumed on first submission, repeat attempts return `401 Unauthorized`            |
-| Success response        | `200 OK` — `{ "status": "updated" }` (nickname applied immediately; email pending confirmation if changed) |
-| Invalid or expired token| `401 Unauthorized` — `{ "error": "Invalid or expired token" }`                                   |
-| Validation failure      | `400 Bad Request` — `{ "error": "<reason>" }`; token is NOT consumed                             |
+| Field                       | Rule                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Endpoint                    | `POST /api/profile/update`                                                                                                                                   |
+| Request body                | `{ "token": "<magic-link-token>", "nickname": "<name>", "email": "<new-address>" }` (both fields optional; omitted fields are left unchanged)                |
+| Token consumed              | Token is invalidated immediately after successful processing                                                                                                 |
+| Nickname validation         | Must be 1–50 characters; no leading or trailing whitespace                                                                                                   |
+| Email unchanged             | If `email` matches current address or is omitted, no email confirmation is triggered                                                                         |
+| Email already in use        | `409 Conflict` — `{ "error": "Email already registered" }`; checks all subscriber records (active and pending); no fields are updated; token is NOT consumed |
+| Email changed               | Generate email confirmation token and send confirmation email to the new address; nickname update (if provided) still applies immediately                    |
+| Confirmation token lifetime | 24 hours from creation                                                                                                                                       |
+| Repeat submission           | Since token is consumed on first submission, repeat attempts return `401 Unauthorized`                                                                       |
+| Success response            | `200 OK` — `{ "status": "updated" }` (nickname applied immediately; email pending confirmation if changed)                                                   |
+| Invalid or expired token    | `401 Unauthorized` — `{ "error": "Invalid or expired token" }`                                                                                               |
+| Validation failure          | `400 Bad Request` — `{ "error": "<reason>" }`; token is NOT consumed                                                                                         |
 
 #### Confirm Email
 
-| Field                          | Rule                                                                          |
-| ------------------------------ | ----------------------------------------------------------------------------- |
-| Endpoint                       | `GET /api/profile/confirm-email?token=<confirm-token>`                        |
-| Subscription confirmation token| Set `activated_at` to current timestamp; display welcome page                 |
-| Email change confirmation token| Update subscriber email; display confirmation page                            |
-| Expired token                  | Display error page; subscriber must restart the process (resubscribe or redo email change) |
-| Email now taken                | Display error page; email was registered by another subscriber (active or pending) since request |
+| Field                           | Rule                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Endpoint                        | `GET /api/profile/confirm-email?token=<confirm-token>`                                           |
+| Subscription confirmation token | Set `activated_at` to current timestamp; display welcome page                                    |
+| Email change confirmation token | Update subscriber email; display confirmation page                                               |
+| Expired token                   | Display error page; subscriber must restart the process (resubscribe or redo email change)       |
+| Email now taken                 | Display error page; email was registered by another subscriber (active or pending) since request |
 
 ---
 
 ## Error Scenarios
 
-| Scenario                                     | Behavior                                                                 |
-| -------------------------------------------- | ------------------------------------------------------------------------ |
-| RSS feed unreachable                         | Log error; retry on next scheduled run; do not generate newsletter       |
-| RSS feed returns invalid XML                 | Log error; skip this run; notify admin after 3 consecutive failures (notification mechanism — _to be decided_) |
-| Email service unavailable                    | Queue for retry; log error                                               |
-| Email delivery permanently bounces           | Store bounce event (retained 7 days); keep subscriber `active`; admin may remove subscriber manually |
-| Database unavailable                         | API returns `503 Service Unavailable`; Cron logs error, retries next run |
-| Subscription confirmation token expired or invalid | Display error page prompting visitor to resubscribe                 |
-| Subscription confirmation for already-active email | Return success (idempotent)                                        |
-| Concurrent subscribe requests for same email | Idempotent; one record created; both requests return success             |
-| Schedule send time in the past               | Reject with `400 Bad Request`                                            |
-| Newsletter send partially completes          | Log aggregate failure count; resume strategy — _to be decided (depends on email service provider selection)_ |
-| Admin request without JWT header             | `401 Unauthorized` — `{ "error": "Authentication required" }`           |
-| Admin request with invalid JWT               | `403 Forbidden` — `{ "error": "Invalid token" }`                        |
-| Admin request with expired JWT               | `403 Forbidden` — `{ "error": "Token expired" }`                        |
-| JWKS endpoint unreachable                    | `503 Service Unavailable`; log error                                     |
+| Scenario                                                                      | Behavior                                                                                                                |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| RSS feed unreachable                                                          | Log error; retry on next scheduled run; do not generate newsletter                                                      |
+| RSS feed returns invalid XML                                                  | Log error; skip this run; notify admin after 3 consecutive failures (notification mechanism — _to be decided_)          |
+| Email service unavailable                                                     | Queue for retry; log error                                                                                              |
+| Email delivery permanently bounces                                            | Store bounce event (retained 7 days); keep subscriber `active`; admin may remove subscriber manually                    |
+| Database unavailable                                                          | API returns `503 Service Unavailable`; Cron logs error, retries next run                                                |
+| Subscription confirmation token expired or invalid                            | Display error page prompting visitor to resubscribe                                                                     |
+| Subscription confirmation for already-active email                            | Return success (idempotent)                                                                                             |
+| Concurrent subscribe requests for same email                                  | Idempotent; one record created; both requests return success                                                            |
+| Schedule send time in the past                                                | Reject with `400 Bad Request`                                                                                           |
+| Newsletter send partially completes                                           | Log aggregate failure count; resume strategy — _to be decided (depends on email service provider selection)_            |
+| Admin request without JWT header                                              | `401 Unauthorized` — `{ "error": "Authentication required" }`                                                           |
+| Admin request with invalid JWT                                                | `403 Forbidden` — `{ "error": "Invalid token" }`                                                                        |
+| Admin request with expired JWT                                                | `403 Forbidden` — `{ "error": "Token expired" }`                                                                        |
+| JWKS endpoint unreachable                                                     | `503 Service Unavailable`; log error                                                                                    |
 | Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set) | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details |
-| Magic Link token expired or invalid          | Display error page prompting subscriber to request a new link                    |
-| Magic Link token already used                | Display error page prompting subscriber to request a new link                    |
-| Email confirmation token expired             | Do not update email or activate subscription; display error page prompting subscriber to restart process |
-| New email already registered by another subscriber (active or pending) | Display error page; email was claimed since the change was requested |
-| Nickname exceeds length limit                | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`           |
-| Magic Link request rate exceeded             | `429 Too Many Requests`                                                          |
+| Magic Link token expired or invalid                                           | Display error page prompting subscriber to request a new link                                                           |
+| Magic Link token already used                                                 | Display error page prompting subscriber to request a new link                                                           |
+| Email confirmation token expired                                              | Do not update email or activate subscription; display error page prompting subscriber to restart process                |
+| New email already registered by another subscriber (active or pending)        | Display error page; email was claimed since the change was requested                                                    |
+| Nickname exceeds length limit                                                 | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`                                                   |
+| Magic Link request rate exceeded                                              | `429 Too Many Requests`                                                                                                 |
 
 ---
 
@@ -389,21 +389,21 @@ The system retains personally identifiable information only for as long as neces
 
 ### Data Classification
 
-| Data | PII | Purpose | Retention |
-| ---- | --- | ------- | --------- |
-| Subscriber email | Yes | Deliver newsletters | While active only; deleted on unsubscribe |
-| Unsubscribe token | No | Authenticate unsubscribe | Deleted with subscriber record |
-| Rate limit IP | Yes | Enforce subscribe rate limit | Rate-limit window only (ephemeral) |
-| Newsletter content | No | Archive sent newsletters | Indefinite (admin content) |
-| Delivery statistics | No | Aggregate analytics | Indefinite (no PII) |
-| Bounce events | Yes | Admin reviews delivery failures | Ephemeral; auto-purged after 7 days |
-| Subscriber nickname | Possibly | Newsletter personalization, admin display | While active; deleted with subscriber record |
-| Magic link token | No | Authenticate profile access | Short-lived (15 min); single-use; auto-expire |
-| Subscription confirmation token | No | Verify email ownership for double opt-in | Short-lived (24 hours); auto-expire |
-| Email change confirmation token | No | Verify new email ownership | Short-lived (24 hours); auto-expire |
-| Pending email change | Yes | Store new email until confirmed | Until confirmed or expired |
-| Unactivated subscriber record | Yes | Pending subscription confirmation | Deleted after confirmation token expires |
-| RSS feed state | No | Track last processed timestamp | Indefinite (operational) |
+| Data                            | PII      | Purpose                                   | Retention                                     |
+| ------------------------------- | -------- | ----------------------------------------- | --------------------------------------------- |
+| Subscriber email                | Yes      | Deliver newsletters                       | While active only; deleted on unsubscribe     |
+| Unsubscribe token               | No       | Authenticate unsubscribe                  | Deleted with subscriber record                |
+| Rate limit IP                   | Yes      | Enforce subscribe rate limit              | Rate-limit window only (ephemeral)            |
+| Newsletter content              | No       | Archive sent newsletters                  | Indefinite (admin content)                    |
+| Delivery statistics             | No       | Aggregate analytics                       | Indefinite (no PII)                           |
+| Bounce events                   | Yes      | Admin reviews delivery failures           | Ephemeral; auto-purged after 7 days           |
+| Subscriber nickname             | Possibly | Newsletter personalization, admin display | While active; deleted with subscriber record  |
+| Magic link token                | No       | Authenticate profile access               | Short-lived (15 min); single-use; auto-expire |
+| Subscription confirmation token | No       | Verify email ownership for double opt-in  | Short-lived (24 hours); auto-expire           |
+| Email change confirmation token | No       | Verify new email ownership                | Short-lived (24 hours); auto-expire           |
+| Pending email change            | Yes      | Store new email until confirmed           | Until confirmed or expired                    |
+| Unactivated subscriber record   | Yes      | Pending subscription confirmation         | Deleted after confirmation token expires      |
+| RSS feed state                  | No       | Track last processed timestamp            | Indefinite (operational)                      |
 
 Admin-related data (JWT claims, identity) is not covered by this privacy policy — the admin is the platform owner.
 
@@ -417,41 +417,41 @@ Unsubscribe and cleanup trigger immediate hard deletion; there is no soft-delete
 active ──(admin remove)──▶ [deleted]
 ```
 
-| Event | Rule |
-| ----- | ---- |
-| Subscription confirmed | Set `activated_at` to current timestamp; subscriber becomes active |
-| Confirmation token expired | Hard delete unactivated subscriber record during cleanup |
-| Unsubscribe | Validate token, then hard delete subscriber record immediately |
-| Admin removal | Hard delete immediately |
-| Resubscribe after deletion | Creates a new record (previous record is unrecoverable) |
+| Event                      | Rule                                                               |
+| -------------------------- | ------------------------------------------------------------------ |
+| Subscription confirmed     | Set `activated_at` to current timestamp; subscriber becomes active |
+| Confirmation token expired | Hard delete unactivated subscriber record during cleanup           |
+| Unsubscribe                | Validate token, then hard delete subscriber record immediately     |
+| Admin removal              | Hard delete immediately                                            |
+| Resubscribe after deletion | Creates a new record (previous record is unrecoverable)            |
 
 ### Delivery Tracking
 
-| Rule | Value |
-| ---- | ----- |
-| Per-recipient tracking | Not permitted |
-| Per-newsletter statistics | Total sent count, total failure count |
-| Statistics retention | Indefinite (contains no PII) |
-| Bounce event tracking | Permitted as exception; ephemeral storage only (see Bounce Events) |
+| Rule                      | Value                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| Per-recipient tracking    | Not permitted                                                      |
+| Per-newsletter statistics | Total sent count, total failure count                              |
+| Statistics retention      | Indefinite (contains no PII)                                       |
+| Bounce event tracking     | Permitted as exception; ephemeral storage only (see Bounce Events) |
 
 ### Bounce Events
 
 Bounce events are an explicit exception to the per-recipient tracking prohibition. They are retained temporarily to allow the administrator to review delivery failures and take corrective action.
 
-| Rule | Value |
-| ---- | ----- |
-| Stored data | Subscriber email, bounce reason, timestamp |
-| Retention period | 7 days from event creation |
-| Expiry action | Automatic hard delete |
-| Admin access | View bounce events; manually remove bounced subscribers during retention period |
+| Rule             | Value                                                                           |
+| ---------------- | ------------------------------------------------------------------------------- |
+| Stored data      | Subscriber email, bounce reason, timestamp                                      |
+| Retention period | 7 days from event creation                                                      |
+| Expiry action    | Automatic hard delete                                                           |
+| Admin access     | View bounce events; manually remove bounced subscribers during retention period |
 
 ### Rate Limit Data
 
-| Rule | Value |
-| ---- | ----- |
-| Storage | Ephemeral only (in-memory or KV with TTL) |
-| Retention | Evicted after rate-limit window expires (1 minute) |
-| Persistent storage | Not permitted |
+| Rule               | Value                                              |
+| ------------------ | -------------------------------------------------- |
+| Storage            | Ephemeral only (in-memory or KV with TTL)          |
+| Retention          | Evicted after rate-limit window expires (1 minute) |
+| Persistent storage | Not permitted                                      |
 
 ---
 
@@ -485,20 +485,20 @@ To be decided:
 
 ## Terminology
 
-| Term              | Definition                                                                              |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| Subscriber        | A person identified by email address who has opted in to receive newsletters            |
-| Newsletter        | An email sent to all active subscribers, either generated from RSS or manually composed |
-| Feed entry        | A single item in an RSS feed representing a published piece of content                  |
-| Unsubscribe token | A unique, per-subscriber token for authenticating unsubscribe requests without login    |
-| Active subscriber | A subscriber with `activated_at IS NOT NULL` who is eligible to receive newsletters     |
-| `activated_at`    | Nullable timestamp on a subscriber record; `NULL` = pending confirmation, non-`NULL` = active and records when the subscription was confirmed |
-| Double opt-in     | Subscription flow requiring the subscriber to confirm their email address before activation; prevents unauthorized sign-ups |
-| Confirmation token | A temporary token (24-hour lifetime) used to verify email ownership; covers both subscription confirmation (double opt-in) and email change confirmation |
-| JWKS              | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification |
-| Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim |
-| Team domain       | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL              |
-| PII               | Personally Identifiable Information — data that can identify a specific person (e.g., email address) |
-| Hard delete       | Permanent removal of a record from the database; not recoverable                            |
-| Bounce event      | A delivery failure notification indicating an email could not be delivered to a specific subscriber |
-| Magic Link        | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification |
+| Term                       | Definition                                                                                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Subscriber                 | A person identified by email address who has opted in to receive newsletters                                                                             |
+| Newsletter                 | An email sent to all active subscribers, either generated from RSS or manually composed                                                                  |
+| Feed entry                 | A single item in an RSS feed representing a published piece of content                                                                                   |
+| Unsubscribe token          | A unique, per-subscriber token for authenticating unsubscribe requests without login                                                                     |
+| Active subscriber          | A subscriber with `activated_at IS NOT NULL` who is eligible to receive newsletters                                                                      |
+| `activated_at`             | Nullable timestamp on a subscriber record; `NULL` = pending confirmation, non-`NULL` = active and records when the subscription was confirmed            |
+| Double opt-in              | Subscription flow requiring the subscriber to confirm their email address before activation; prevents unauthorized sign-ups                              |
+| Confirmation token         | A temporary token (24-hour lifetime) used to verify email ownership; covers both subscription confirmation (double opt-in) and email change confirmation |
+| JWKS                       | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification                                                             |
+| Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim                                                                    |
+| Team domain                | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL                                                                           |
+| PII                        | Personally Identifiable Information — data that can identify a specific person (e.g., email address)                                                     |
+| Hard delete                | Permanent removal of a record from the database; not recoverable                                                                                         |
+| Bounce event               | A delivery failure notification indicating an email could not be delivered to a specific subscriber                                                      |
+| Magic Link                 | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification                                                |

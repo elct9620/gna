@@ -61,11 +61,11 @@ tsyringe container is configured in `src/container.ts` and imported at the top o
 
 **esbuild limitation:** Vite uses esbuild which does not support `emitDecoratorMetadata`, so tsyringe's `@inject()` decorator cannot resolve constructor parameters. Three registration patterns coexist:
 
-| Pattern | Registration | When to use | Examples |
-|---------|-------------|-------------|----------|
-| Decorator + register | `@injectable()` + `registerSingleton()` | Pure business logic with constructor deps | `EmailRenderer`, `SubscriptionService` |
-| Decorator only | `@injectable()` (no explicit registration) | No constructor deps; resolved ad-hoc via `container.resolve()` | `AdminAuthService` |
-| Factory | `register()` + `instanceCachingFactory()` | Needs env values, external SDK instances, or caching | `DATABASE`, `AWS_CLIENT`, `EmailSender` |
+| Pattern              | Registration                               | When to use                                                    | Examples                                |
+| -------------------- | ------------------------------------------ | -------------------------------------------------------------- | --------------------------------------- |
+| Decorator + register | `@injectable()` + `registerSingleton()`    | Pure business logic with constructor deps                      | `EmailRenderer`, `SubscriptionService`  |
+| Decorator only       | `@injectable()` (no explicit registration) | No constructor deps; resolved ad-hoc via `container.resolve()` | `AdminAuthService`                      |
+| Factory              | `register()` + `instanceCachingFactory()`  | Needs env values, external SDK instances, or caching           | `DATABASE`, `AWS_CLIENT`, `EmailSender` |
 
 Most services will be **decorator-based**. Use factory registration when the service depends on `env`, wraps a third-party client, or needs singleton caching. Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`). Scalar env values injected into services also use Symbol tokens registered via factory.
 

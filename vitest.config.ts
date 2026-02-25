@@ -12,10 +12,7 @@ export default defineWorkersConfig({
     deps: {
       optimizer: {
         ssr: {
-          include: [
-            "react-remove-scroll",
-            "react-remove-scroll-bar",
-          ],
+          include: ["react-remove-scroll", "react-remove-scroll-bar"],
         },
       },
     },
