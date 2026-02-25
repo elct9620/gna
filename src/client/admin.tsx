@@ -12,6 +12,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { AppSidebar } from "@/components/appSidebar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -31,7 +32,7 @@ import {
 interface Subscriber {
   email: string;
   nickname?: string;
-  subscribedAt: string;
+  status: string;
 }
 
 export function Admin() {
@@ -66,7 +67,7 @@ export function Admin() {
               <TableRow>
                 <TableHead>Email</TableHead>
                 <TableHead>Nickname</TableHead>
-                <TableHead>Subscribed At</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -86,7 +87,15 @@ export function Admin() {
                     <TableCell>{subscriber.email}</TableCell>
                     <TableCell>{subscriber.nickname ?? "\u2014"}</TableCell>
                     <TableCell>
-                      {new Date(subscriber.subscribedAt).toLocaleDateString()}
+                      <Badge
+                        variant={
+                          subscriber.status === "Activated"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {subscriber.status}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <AlertDialog>

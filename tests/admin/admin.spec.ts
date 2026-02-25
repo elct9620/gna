@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { container } from "@/container";
 import { EmailSender } from "@/services/emailSender";
+import { SubscriptionService } from "@/services/subscriptionService";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mockEmailSender";
 
@@ -116,13 +117,70 @@ describe("GET /admin/api/subscribers", () => {
       subscribers: Array<{
         email: string;
         nickname: string;
-        subscribedAt: string;
+        status: string;
       }>;
     }>();
     expect(data.subscribers).toHaveLength(1);
     expect(data.subscribers[0].email).toBe("test@example.com");
     expect(data.subscribers[0].nickname).toBe("Test");
-    expect(data.subscribers[0].subscribedAt).toBeDefined();
+    expect(data.subscribers[0].status).toBeDefined();
+  });
+
+  it("should return status 'Pending' for unconfirmed subscriber", async () => {
+    await app.request(
+      "/api/subscribe",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "pending@example.com",
+          nickname: "Pending",
+        }),
+      },
+      authBypass,
+    );
+
+    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    const data = await res.json<{
+      subscribers: Array<{ email: string; status: string }>;
+    }>();
+
+    const subscriber = data.subscribers.find(
+      (s) => s.email === "pending@example.com",
+    );
+    expect(subscriber?.status).toBe("Pending");
+  });
+
+  it("should return status 'Activated' for confirmed subscriber", async () => {
+    await app.request(
+      "/api/subscribe",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "active@example.com",
+          nickname: "Active",
+        }),
+      },
+      authBypass,
+    );
+
+    const service = container.resolve(SubscriptionService);
+    const subscribers = service.listSubscribers();
+    const sub = subscribers.find((s) => s.email === "active@example.com");
+    const confirmToken = sub!.confirmationToken!;
+
+    await app.request(`/confirm?token=${confirmToken}`, {}, authBypass);
+
+    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    const data = await res.json<{
+      subscribers: Array<{ email: string; status: string }>;
+    }>();
+
+    const subscriber = data.subscribers.find(
+      (s) => s.email === "active@example.com",
+    );
+    expect(subscriber?.status).toBe("Activated");
   });
 });
 

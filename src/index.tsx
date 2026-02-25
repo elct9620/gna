@@ -155,7 +155,7 @@ app.get("/admin/api/subscribers", async (c) => {
     subscribers: subscribers.map((s) => ({
       email: s.email,
       nickname: s.nickname,
-      subscribedAt: s.subscribedAt.toISOString(),
+      status: s.activatedAt ? "Activated" : "Pending",
     })),
   });
 });
