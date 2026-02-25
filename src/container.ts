@@ -59,7 +59,11 @@ container.register(NotificationService, {
   },
 });
 
-container.registerSingleton(SubscriptionService);
+container.register(SubscriptionService, {
+  useFactory: instanceCachingFactory((c) => {
+    return new SubscriptionService(c.resolve(DATABASE));
+  }),
+});
 container.registerSingleton(EmailRenderer);
 
 export { container };

@@ -1,16 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { env } from "cloudflare:test";
+import { describe, it, expect, beforeEach } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
 import { SubscriptionService } from "@/services/subscriptionService";
+import { subscribers } from "@/db/schema";
 
 describe("SubscriptionService", () => {
   let service: SubscriptionService;
 
-  beforeEach(() => {
-    service = new SubscriptionService();
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+    service = new SubscriptionService(db);
   });
 
   describe("subscribe", () => {
-    it("should create a new pending subscriber", () => {
-      const result = service.subscribe("test@example.com", "Test");
+    it("should create a new pending subscriber", async () => {
+      const result = await service.subscribe("test@example.com", "Test");
 
       expect(result.action).toBe("created");
       expect(result.subscriber.email).toBe("test@example.com");
@@ -20,36 +25,40 @@ describe("SubscriptionService", () => {
       expect(result.subscriber.confirmationToken).toBeTruthy();
     });
 
-    it("should resend for duplicate pending subscriber", () => {
-      const first = service.subscribe("test@example.com");
+    it("should resend for duplicate pending subscriber", async () => {
+      const first = await service.subscribe("test@example.com");
       const oldToken = first.subscriber.confirmationToken;
 
-      const second = service.subscribe("test@example.com");
+      const second = await service.subscribe("test@example.com");
 
       expect(second.action).toBe("resend");
       expect(second.subscriber.confirmationToken).not.toBe(oldToken);
     });
 
-    it("should return none for already active subscriber", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
+    it("should return none for already active subscriber", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
 
-      const result = service.subscribe("test@example.com");
+      const result = await service.subscribe("test@example.com");
       expect(result.action).toBe("none");
     });
 
-    it("should throw for invalid email", () => {
-      expect(() => service.subscribe("")).toThrow("Invalid email address");
-      expect(() => service.subscribe("not-an-email")).toThrow(
+    it("should throw for invalid email", async () => {
+      await expect(service.subscribe("")).rejects.toThrow(
+        "Invalid email address",
+      );
+      await expect(service.subscribe("not-an-email")).rejects.toThrow(
         "Invalid email address",
       );
     });
   });
 
   describe("confirmSubscription", () => {
-    it("should activate a pending subscriber", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      const result = service.confirmSubscription(subscriber.confirmationToken!);
+    it("should activate a pending subscriber", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      const result = await service.confirmSubscription(
+        subscriber.confirmationToken!,
+      );
 
       expect(result).not.toBeNull();
       expect(result!.isActivated).toBe(true);
@@ -57,210 +66,287 @@ describe("SubscriptionService", () => {
       expect(result!.confirmationToken).toBeNull();
     });
 
-    it("should return null for invalid token", () => {
-      expect(service.confirmSubscription("invalid-token")).toBeNull();
+    it("should return null for invalid token", async () => {
+      expect(await service.confirmSubscription("invalid-token")).toBeNull();
     });
 
-    it("should return null if token already consumed", () => {
-      const { subscriber } = service.subscribe("test@example.com");
+    it("should return null if token already consumed", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
       const token = subscriber.confirmationToken!;
-      service.confirmSubscription(token);
+      await service.confirmSubscription(token);
 
-      expect(service.confirmSubscription(token)).toBeNull();
+      expect(await service.confirmSubscription(token)).toBeNull();
+    });
+
+    it("should return null for expired confirmation token", async () => {
+      const db = drizzle(env.DB);
+      const { subscriber } = await service.subscribe("test@example.com");
+      const token = subscriber.confirmationToken!;
+
+      const { eq } = await import("drizzle-orm");
+      await db
+        .update(subscribers)
+        .set({
+          confirmationExpiresAt: new Date(Date.now() - 60 * 1000).toISOString(),
+        })
+        .where(eq(subscribers.confirmationToken, token));
+
+      expect(await service.confirmSubscription(token)).toBeNull();
     });
   });
 
   describe("requestMagicLink", () => {
-    it("should generate a magic link token for active subscriber", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
+    it("should generate a magic link token for active subscriber", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
 
-      const token = service.requestMagicLink("test@example.com");
+      const token = await service.requestMagicLink("test@example.com");
       expect(token).toBeTruthy();
     });
 
-    it("should return null for inactive subscriber", () => {
-      service.subscribe("test@example.com");
-      expect(service.requestMagicLink("test@example.com")).toBeNull();
+    it("should return null for inactive subscriber", async () => {
+      await service.subscribe("test@example.com");
+      expect(await service.requestMagicLink("test@example.com")).toBeNull();
     });
 
-    it("should return null for non-existent subscriber", () => {
-      expect(service.requestMagicLink("nope@example.com")).toBeNull();
+    it("should return null for non-existent subscriber", async () => {
+      expect(await service.requestMagicLink("nope@example.com")).toBeNull();
     });
 
-    it("should replace previous magic link token", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
+    it("should replace previous magic link token", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
 
-      const first = service.requestMagicLink("test@example.com");
-      const second = service.requestMagicLink("test@example.com");
+      const first = await service.requestMagicLink("test@example.com");
+      const second = await service.requestMagicLink("test@example.com");
 
       expect(first).not.toBe(second);
-      expect(service.validateMagicLink(first!)).toBeNull();
-      expect(service.validateMagicLink(second!)).not.toBeNull();
+      expect(await service.validateMagicLink(first!)).toBeNull();
+      expect(await service.validateMagicLink(second!)).not.toBeNull();
     });
   });
 
   describe("validateMagicLink", () => {
-    it("should return subscriber for valid token", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
-      const token = service.requestMagicLink("test@example.com")!;
+    it("should return subscriber for valid token", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+      const token = (await service.requestMagicLink("test@example.com"))!;
 
-      const result = service.validateMagicLink(token);
+      const result = await service.validateMagicLink(token);
       expect(result).not.toBeNull();
       expect(result!.email).toBe("test@example.com");
     });
 
-    it("should return null for expired token", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
-      const token = service.requestMagicLink("test@example.com")!;
+    it("should return null for expired token", async () => {
+      const db = drizzle(env.DB);
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+      const token = (await service.requestMagicLink("test@example.com"))!;
 
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date(Date.now() + 16 * 60 * 1000));
+      // Directly update the DB to set an expired timestamp
+      const { eq } = await import("drizzle-orm");
+      await db
+        .update(subscribers)
+        .set({
+          magicLinkExpiresAt: new Date(Date.now() - 60 * 1000).toISOString(),
+        })
+        .where(eq(subscribers.magicLinkToken, token));
 
-      expect(service.validateMagicLink(token)).toBeNull();
-
-      vi.useRealTimers();
+      expect(await service.validateMagicLink(token)).toBeNull();
     });
 
-    it("should return null for invalid token", () => {
-      expect(service.validateMagicLink("invalid-token")).toBeNull();
+    it("should return null for invalid token", async () => {
+      expect(await service.validateMagicLink("invalid-token")).toBeNull();
     });
   });
 
   describe("consumeMagicLink", () => {
-    it("should invalidate the token", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
-      const token = service.requestMagicLink("test@example.com")!;
+    it("should invalidate the token", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+      const token = (await service.requestMagicLink("test@example.com"))!;
 
-      service.consumeMagicLink(token);
-      expect(service.validateMagicLink(token)).toBeNull();
+      await service.consumeMagicLink(token);
+      expect(await service.validateMagicLink(token)).toBeNull();
     });
 
-    it("should do nothing for invalid token", () => {
-      expect(() => service.consumeMagicLink("invalid")).not.toThrow();
+    it("should do nothing for invalid token", async () => {
+      await expect(service.consumeMagicLink("invalid")).resolves.not.toThrow();
     });
   });
 
   describe("updateNickname", () => {
-    it("should update the nickname", () => {
-      service.subscribe("test@example.com", "Old");
-      const updated = service.updateNickname("test@example.com", "New");
+    it("should update the nickname", async () => {
+      await service.subscribe("test@example.com", "Old");
+      const updated = await service.updateNickname("test@example.com", "New");
 
       expect(updated).toBe(true);
-      const subscribers = service.listSubscribers();
-      expect(subscribers[0].nickname).toBe("New");
+      const list = await service.listSubscribers();
+      expect(list[0].nickname).toBe("New");
     });
 
-    it("should return false for non-existent subscriber", () => {
-      expect(service.updateNickname("nope@example.com", "Name")).toBe(false);
+    it("should return false for non-existent subscriber", async () => {
+      expect(await service.updateNickname("nope@example.com", "Name")).toBe(
+        false,
+      );
     });
   });
 
   describe("requestEmailChange", () => {
-    it("should set pending email and token", () => {
-      service.subscribe("old@example.com");
-      const token = service.requestEmailChange(
+    it("should set pending email and token", async () => {
+      const { subscriber } = await service.subscribe("old@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+
+      const token = await service.requestEmailChange(
         "old@example.com",
         "new@example.com",
       );
 
       expect(token).toBeTruthy();
-      const subscribers = service.listSubscribers();
-      expect(subscribers[0].pendingEmail).toBe("new@example.com");
+      const list = await service.listSubscribers();
+      expect(list[0].pendingEmail).toBe("new@example.com");
     });
 
-    it("should return null for non-existent subscriber", () => {
+    it("should return null for non-existent subscriber", async () => {
       expect(
-        service.requestEmailChange("nope@example.com", "new@example.com"),
+        await service.requestEmailChange("nope@example.com", "new@example.com"),
       ).toBeNull();
     });
 
-    it("should replace previous email confirmation token", () => {
-      service.subscribe("old@example.com");
-      const first = service.requestEmailChange(
+    it("should return null for pending subscriber", async () => {
+      await service.subscribe("old@example.com");
+
+      expect(
+        await service.requestEmailChange("old@example.com", "new@example.com"),
+      ).toBeNull();
+    });
+
+    it("should replace previous email confirmation token", async () => {
+      const { subscriber } = await service.subscribe("old@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+
+      const first = await service.requestEmailChange(
         "old@example.com",
         "new1@example.com",
       );
-      const second = service.requestEmailChange(
+      const second = await service.requestEmailChange(
         "old@example.com",
         "new2@example.com",
       );
 
       expect(first).not.toBe(second);
-      expect(service.confirmEmailChange(first!)).toBeNull();
+      expect(await service.confirmEmailChange(first!)).toBeNull();
     });
   });
 
   describe("confirmEmailChange", () => {
-    it("should update the email address", () => {
-      service.subscribe("old@example.com");
-      const token = service.requestEmailChange(
+    it("should update the email address", async () => {
+      const { subscriber } = await service.subscribe("old@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+
+      const token = (await service.requestEmailChange(
         "old@example.com",
         "new@example.com",
-      )!;
+      ))!;
 
-      const result = service.confirmEmailChange(token);
+      const result = await service.confirmEmailChange(token);
 
       expect(result).not.toBeNull();
       expect(result!.email).toBe("new@example.com");
       expect(result!.pendingEmail).toBeNull();
-      expect(result!.emailConfirmationToken).toBeNull();
+      expect(result!.confirmationToken).toBeNull();
     });
 
-    it("should return null for invalid token", () => {
-      expect(service.confirmEmailChange("invalid-token")).toBeNull();
+    it("should return null for invalid token", async () => {
+      expect(await service.confirmEmailChange("invalid-token")).toBeNull();
     });
 
-    it("should update subscriber index", () => {
-      service.subscribe("old@example.com");
-      const token = service.requestEmailChange(
+    it("should return null for expired confirmation token", async () => {
+      const db = drizzle(env.DB);
+      const { subscriber } = await service.subscribe("old@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+
+      const token = (await service.requestEmailChange(
         "old@example.com",
         "new@example.com",
-      )!;
-      service.confirmEmailChange(token);
+      ))!;
 
-      expect(service.isEmailTaken("new@example.com")).toBe(true);
-      expect(service.isEmailTaken("old@example.com")).toBe(false);
+      const { eq } = await import("drizzle-orm");
+      await db
+        .update(subscribers)
+        .set({
+          confirmationExpiresAt: new Date(Date.now() - 60 * 1000).toISOString(),
+        })
+        .where(eq(subscribers.confirmationToken, token));
+
+      expect(await service.confirmEmailChange(token)).toBeNull();
+    });
+
+    it("should return null when pending email is already taken", async () => {
+      const { subscriber: sub1 } = await service.subscribe("owner@example.com");
+      await service.confirmSubscription(sub1.confirmationToken!);
+
+      const { subscriber: sub2 } = await service.subscribe(
+        "changer@example.com",
+      );
+      await service.confirmSubscription(sub2.confirmationToken!);
+
+      const token = (await service.requestEmailChange(
+        "changer@example.com",
+        "owner@example.com",
+      ))!;
+
+      expect(await service.confirmEmailChange(token)).toBeNull();
+    });
+
+    it("should update subscriber index", async () => {
+      const { subscriber } = await service.subscribe("old@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+
+      const token = (await service.requestEmailChange(
+        "old@example.com",
+        "new@example.com",
+      ))!;
+      await service.confirmEmailChange(token);
+
+      expect(await service.isEmailTaken("new@example.com")).toBe(true);
+      expect(await service.isEmailTaken("old@example.com")).toBe(false);
     });
   });
 
   describe("isEmailTaken", () => {
-    it("should return true for existing email", () => {
-      service.subscribe("test@example.com");
-      expect(service.isEmailTaken("test@example.com")).toBe(true);
+    it("should return true for existing email", async () => {
+      await service.subscribe("test@example.com");
+      expect(await service.isEmailTaken("test@example.com")).toBe(true);
     });
 
-    it("should return false for non-existing email", () => {
-      expect(service.isEmailTaken("nope@example.com")).toBe(false);
+    it("should return false for non-existing email", async () => {
+      expect(await service.isEmailTaken("nope@example.com")).toBe(false);
     });
   });
 
   describe("unsubscribe", () => {
-    it("should clean up all related indexes", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
-      service.requestMagicLink("test@example.com");
-      service.requestEmailChange("test@example.com", "new@example.com");
+    it("should remove subscriber", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+      await service.requestMagicLink("test@example.com");
+      await service.requestEmailChange("test@example.com", "new@example.com");
 
-      service.unsubscribe(subscriber.token);
+      await service.unsubscribe(subscriber.unsubscribeToken);
 
-      expect(service.listSubscribers()).toHaveLength(0);
-      expect(service.isEmailTaken("test@example.com")).toBe(false);
+      expect(await service.listSubscribers()).toHaveLength(0);
+      expect(await service.isEmailTaken("test@example.com")).toBe(false);
     });
   });
 
   describe("removeSubscriber", () => {
-    it("should clean up all related indexes", () => {
-      const { subscriber } = service.subscribe("test@example.com");
-      service.confirmSubscription(subscriber.confirmationToken!);
-      service.requestMagicLink("test@example.com");
+    it("should remove subscriber", async () => {
+      const { subscriber } = await service.subscribe("test@example.com");
+      await service.confirmSubscription(subscriber.confirmationToken!);
+      await service.requestMagicLink("test@example.com");
 
-      expect(service.removeSubscriber("test@example.com")).toBe(true);
-      expect(service.listSubscribers()).toHaveLength(0);
+      expect(await service.removeSubscriber("test@example.com")).toBe(true);
+      expect(await service.listSubscribers()).toHaveLength(0);
     });
   });
 });

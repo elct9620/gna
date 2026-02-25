@@ -1,8 +1,15 @@
 import { env } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
+import { subscribers } from "@/db/schema";
 import app from "@/index";
 
 describe("GET /api/unsubscribe", () => {
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+  });
+
   it("should return 400 when token is missing", async () => {
     const res = await app.request("/api/unsubscribe", {}, env);
     expect(res.status).toBe(400);

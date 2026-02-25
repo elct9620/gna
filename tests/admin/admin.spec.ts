@@ -1,8 +1,10 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/emailSender";
 import { SubscriptionService } from "@/services/subscriptionService";
+import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mockEmailSender";
 
@@ -87,7 +89,10 @@ describe("GET /admin", () => {
 });
 
 describe("GET /admin/api/subscribers", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+
     container.register(EmailSender, {
       useValue: new MockEmailSender() as unknown as EmailSender,
     });
@@ -166,8 +171,8 @@ describe("GET /admin/api/subscribers", () => {
     );
 
     const service = container.resolve(SubscriptionService);
-    const subscribers = service.listSubscribers();
-    const sub = subscribers.find((s) => s.email === "active@example.com");
+    const list = await service.listSubscribers();
+    const sub = list.find((s) => s.email === "active@example.com");
     const confirmToken = sub!.confirmationToken!;
 
     await app.request(`/confirm?token=${confirmToken}`, {}, authBypass);
@@ -185,7 +190,10 @@ describe("GET /admin/api/subscribers", () => {
 });
 
 describe("DELETE /admin/api/subscribers/:email", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+
     container.register(EmailSender, {
       useValue: new MockEmailSender() as unknown as EmailSender,
     });

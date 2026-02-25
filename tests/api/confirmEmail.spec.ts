@@ -1,15 +1,20 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/emailSender";
 import { SubscriptionService } from "@/services/subscriptionService";
+import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mockEmailSender";
 
 describe("GET /confirm", () => {
   let mockEmailSender: MockEmailSender;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+
     mockEmailSender = new MockEmailSender();
     container.register(EmailSender, {
       useValue: mockEmailSender as unknown as EmailSender,
@@ -25,7 +30,7 @@ describe("GET /confirm", () => {
 
   it("should redirect on valid subscription confirmation", async () => {
     const service = container.resolve(SubscriptionService);
-    const { subscriber } = service.subscribe("confirm@example.com");
+    const { subscriber } = await service.subscribe("confirm@example.com");
 
     const res = await app.request(
       `/confirm?token=${subscriber.confirmationToken}`,
@@ -39,7 +44,7 @@ describe("GET /confirm", () => {
 
   it("should activate subscriber after confirmation", async () => {
     const service = container.resolve(SubscriptionService);
-    const { subscriber } = service.subscribe("activate@example.com");
+    const { subscriber } = await service.subscribe("activate@example.com");
 
     await app.request(
       `/confirm?token=${subscriber.confirmationToken}`,
@@ -47,17 +52,17 @@ describe("GET /confirm", () => {
       env,
     );
 
-    const subscribers = service.listSubscribers();
-    const activated = subscribers.find(
-      (s) => s.email === "activate@example.com",
-    );
+    const list = await service.listSubscribers();
+    const activated = list.find((s) => s.email === "activate@example.com");
     expect(activated?.activatedAt).toBeInstanceOf(Date);
   });
 
   it("should redirect on valid email change confirmation", async () => {
     const service = container.resolve(SubscriptionService);
-    service.subscribe("old@example.com");
-    const token = service.requestEmailChange(
+    const { subscriber } = await service.subscribe("old@example.com");
+    await service.confirmSubscription(subscriber.confirmationToken!);
+
+    const token = await service.requestEmailChange(
       "old@example.com",
       "new@example.com",
     );

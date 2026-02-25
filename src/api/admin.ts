@@ -5,7 +5,7 @@ import { SubscriptionService } from "@/services/subscriptionService";
 const app = new Hono()
   .get("/subscribers", async (c) => {
     const service = container.resolve(SubscriptionService);
-    const subscribers = service.listSubscribers();
+    const subscribers = await service.listSubscribers();
 
     return c.json({
       subscribers: subscribers.map((s) => ({
@@ -18,7 +18,7 @@ const app = new Hono()
   .delete("/subscribers/:email", async (c) => {
     const email = c.req.param("email");
     const service = container.resolve(SubscriptionService);
-    const removed = service.removeSubscriber(email);
+    const removed = await service.removeSubscriber(email);
 
     if (!removed) {
       return c.json({ error: "Subscriber not found" }, 404);

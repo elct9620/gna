@@ -1,14 +1,19 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/emailSender";
+import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mockEmailSender";
 
 describe("POST /api/subscribe", () => {
   let mockEmailSender: MockEmailSender;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+
     mockEmailSender = new MockEmailSender();
     container.register(EmailSender, {
       useValue: mockEmailSender as unknown as EmailSender,

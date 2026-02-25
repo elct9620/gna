@@ -10,12 +10,12 @@ const app = new Hono().get("/", async (c) => {
 
   const service = container.resolve(SubscriptionService);
 
-  const subscriptionResult = service.confirmSubscription(token);
+  const subscriptionResult = await service.confirmSubscription(token);
   if (subscriptionResult) {
     return c.redirect("/confirmed", 302);
   }
 
-  const emailChangeResult = service.confirmEmailChange(token);
+  const emailChangeResult = await service.confirmEmailChange(token);
   if (emailChangeResult) {
     return c.redirect("/profile?email_changed=true", 302);
   }

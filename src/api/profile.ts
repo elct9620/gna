@@ -10,7 +10,7 @@ const app = new Hono()
 
     if (email) {
       const service = container.resolve(SubscriptionService);
-      const token = service.requestMagicLink(email);
+      const token = await service.requestMagicLink(email);
       if (token) {
         const notification = container.resolve(NotificationService);
         await notification.sendMagicLinkEmail(email, token);
@@ -26,7 +26,7 @@ const app = new Hono()
     }
 
     const service = container.resolve(SubscriptionService);
-    const subscriber = service.validateMagicLink(token);
+    const subscriber = await service.validateMagicLink(token);
     if (!subscriber) {
       return c.json({ error: "Invalid or expired token" }, 401);
     }
@@ -45,23 +45,25 @@ const app = new Hono()
     }
 
     const service = container.resolve(SubscriptionService);
-    const subscriber = service.validateMagicLink(body.token);
+    const subscriber = await service.validateMagicLink(body.token);
     if (!subscriber) {
       return c.json({ error: "Invalid or expired token" }, 401);
     }
 
-    service.consumeMagicLink(body.token);
+    if (body.email && body.email !== subscriber.email) {
+      if (await service.isEmailTaken(body.email)) {
+        return c.json({ error: "Email already in use" }, 409);
+      }
+    }
+
+    await service.consumeMagicLink(body.token);
 
     if (body.nickname !== undefined) {
-      service.updateNickname(subscriber.email, body.nickname);
+      await service.updateNickname(subscriber.email, body.nickname);
     }
 
     if (body.email && body.email !== subscriber.email) {
-      if (service.isEmailTaken(body.email)) {
-        return c.json({ error: "Email already in use" }, 409);
-      }
-
-      const emailToken = service.requestEmailChange(
+      const emailToken = await service.requestEmailChange(
         subscriber.email,
         body.email,
       );

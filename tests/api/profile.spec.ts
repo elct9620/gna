@@ -1,8 +1,10 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
+import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/emailSender";
 import { SubscriptionService } from "@/services/subscriptionService";
+import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mockEmailSender";
 
@@ -10,7 +12,10 @@ describe("Profile API", () => {
   let mockEmailSender: MockEmailSender;
   let service: SubscriptionService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    const db = drizzle(env.DB);
+    await db.delete(subscribers);
+
     mockEmailSender = new MockEmailSender();
     container.register(EmailSender, {
       useValue: mockEmailSender as unknown as EmailSender,
@@ -18,9 +23,9 @@ describe("Profile API", () => {
     service = container.resolve(SubscriptionService);
   });
 
-  function createActiveSubscriber(email: string, nickname?: string) {
-    const { subscriber } = service.subscribe(email, nickname);
-    service.confirmSubscription(subscriber.confirmationToken!);
+  async function createActiveSubscriber(email: string, nickname?: string) {
+    const { subscriber } = await service.subscribe(email, nickname);
+    await service.confirmSubscription(subscriber.confirmationToken!);
     return subscriber;
   }
 
@@ -43,7 +48,7 @@ describe("Profile API", () => {
     });
 
     it("should send magic link email for active subscriber", async () => {
-      createActiveSubscriber("active@example.com");
+      await createActiveSubscriber("active@example.com");
 
       const res = await app.request(
         "/api/profile/request-link",
@@ -63,7 +68,7 @@ describe("Profile API", () => {
     });
 
     it("should not send magic link for pending subscriber", async () => {
-      service.subscribe("pending@example.com");
+      await service.subscribe("pending@example.com");
 
       await app.request(
         "/api/profile/request-link",
@@ -91,8 +96,8 @@ describe("Profile API", () => {
     });
 
     it("should return subscriber data for valid token", async () => {
-      createActiveSubscriber("profile@example.com", "ProfileUser");
-      const token = service.requestMagicLink("profile@example.com")!;
+      await createActiveSubscriber("profile@example.com", "ProfileUser");
+      const token = (await service.requestMagicLink("profile@example.com"))!;
 
       const res = await app.request(`/api/profile?token=${token}`, {}, env);
 
@@ -131,8 +136,8 @@ describe("Profile API", () => {
     });
 
     it("should update nickname", async () => {
-      createActiveSubscriber("update@example.com", "OldNick");
-      const token = service.requestMagicLink("update@example.com")!;
+      await createActiveSubscriber("update@example.com", "OldNick");
+      const token = (await service.requestMagicLink("update@example.com"))!;
 
       const res = await app.request(
         "/api/profile/update",
@@ -148,14 +153,14 @@ describe("Profile API", () => {
       const body = await res.json<{ status: string }>();
       expect(body.status).toBe("updated");
 
-      const subscribers = service.listSubscribers();
-      const updated = subscribers.find((s) => s.email === "update@example.com");
+      const list = await service.listSubscribers();
+      const updated = list.find((s) => s.email === "update@example.com");
       expect(updated?.nickname).toBe("NewNick");
     });
 
     it("should request email change and send confirmation", async () => {
-      createActiveSubscriber("current@example.com");
-      const token = service.requestMagicLink("current@example.com")!;
+      await createActiveSubscriber("current@example.com");
+      const token = (await service.requestMagicLink("current@example.com"))!;
 
       const res = await app.request(
         "/api/profile/update",
@@ -178,9 +183,9 @@ describe("Profile API", () => {
     });
 
     it("should return 409 when new email is already taken", async () => {
-      createActiveSubscriber("existing@example.com");
-      createActiveSubscriber("changer@example.com");
-      const token = service.requestMagicLink("changer@example.com")!;
+      await createActiveSubscriber("existing@example.com");
+      await createActiveSubscriber("changer@example.com");
+      const token = (await service.requestMagicLink("changer@example.com"))!;
 
       const res = await app.request(
         "/api/profile/update",
@@ -197,9 +202,38 @@ describe("Profile API", () => {
       expect(body.error).toBe("Email already in use");
     });
 
+    it("should not consume token when returning 409", async () => {
+      await createActiveSubscriber("existing@example.com");
+      await createActiveSubscriber("changer@example.com");
+      const token = (await service.requestMagicLink("changer@example.com"))!;
+
+      const res = await app.request(
+        "/api/profile/update",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, email: "existing@example.com" }),
+        },
+        env,
+      );
+      expect(res.status).toBe(409);
+
+      // Token should still be valid after 409
+      const retryRes = await app.request(
+        "/api/profile/update",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, nickname: "StillWorks" }),
+        },
+        env,
+      );
+      expect(retryRes.status).toBe(200);
+    });
+
     it("should consume the magic link token after use", async () => {
-      createActiveSubscriber("consume@example.com");
-      const token = service.requestMagicLink("consume@example.com")!;
+      await createActiveSubscriber("consume@example.com");
+      const token = (await service.requestMagicLink("consume@example.com"))!;
 
       await app.request(
         "/api/profile/update",

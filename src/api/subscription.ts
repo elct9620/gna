@@ -11,7 +11,7 @@ const app = new Hono()
 
     let result;
     try {
-      result = service.subscribe(body.email ?? "", body.nickname);
+      result = await service.subscribe(body.email ?? "", body.nickname);
     } catch {
       return c.json({ error: "Invalid email address" }, 400);
     }
@@ -32,7 +32,7 @@ const app = new Hono()
     }
 
     const service = container.resolve(SubscriptionService);
-    service.unsubscribe(token);
+    await service.unsubscribe(token);
 
     return c.redirect("/unsubscribe?status=success", 302);
   });

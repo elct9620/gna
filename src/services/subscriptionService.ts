@@ -1,6 +1,8 @@
-import { injectable } from "tsyringe";
+import { eq } from "drizzle-orm";
+import type { DrizzleD1Database } from "drizzle-orm/d1";
 
-import { Subscriber, type SubscriberData } from "@/entities/subscriber";
+import { subscribers } from "@/db/schema";
+import { Subscriber } from "@/entities/subscriber";
 
 export type SubscribeAction = "created" | "resend" | "none";
 
@@ -11,219 +13,288 @@ export interface SubscribeResult {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
+const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
 
-@injectable()
 export class SubscriptionService {
-  private subscribers = new Map<string, SubscriberData>();
-  private tokenIndex = new Map<string, string>();
-  private confirmationTokenIndex = new Map<string, string>();
-  private magicLinkTokenIndex = new Map<string, string>();
-  private emailConfirmationTokenIndex = new Map<string, string>();
+  constructor(private db: DrizzleD1Database) {}
 
-  private toEntity(data: SubscriberData): Subscriber {
-    return new Subscriber(data);
+  private toEntity(row: typeof subscribers.$inferSelect): Subscriber {
+    return new Subscriber({
+      id: row.id,
+      email: row.email,
+      nickname: row.nickname ?? undefined,
+      unsubscribeToken: row.unsubscribeToken,
+      createdAt: new Date(row.createdAt),
+      activatedAt: row.activatedAt ? new Date(row.activatedAt) : null,
+      confirmationToken: row.confirmationToken,
+      confirmationExpiresAt: row.confirmationExpiresAt
+        ? new Date(row.confirmationExpiresAt)
+        : null,
+      magicLinkToken: row.magicLinkToken,
+      magicLinkExpiresAt: row.magicLinkExpiresAt
+        ? new Date(row.magicLinkExpiresAt)
+        : null,
+      pendingEmail: row.pendingEmail,
+    });
   }
 
-  private cleanupTokenIndexes(data: SubscriberData): void {
-    if (data.confirmationToken) {
-      this.confirmationTokenIndex.delete(data.confirmationToken);
-    }
-    if (data.magicLinkToken) {
-      this.magicLinkTokenIndex.delete(data.magicLinkToken);
-    }
-    if (data.emailConfirmationToken) {
-      this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
-    }
-  }
-
-  subscribe(email: string, nickname?: string): SubscribeResult {
+  async subscribe(email: string, nickname?: string): Promise<SubscribeResult> {
     if (!email || !EMAIL_REGEX.test(email)) {
       throw new Error("Invalid email address");
     }
 
-    const existing = this.subscribers.get(email);
+    const existing = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.email, email))
+      .get();
+
     if (existing) {
       if (existing.activatedAt) {
         return { subscriber: this.toEntity(existing), action: "none" };
       }
 
-      if (existing.confirmationToken) {
-        this.confirmationTokenIndex.delete(existing.confirmationToken);
-      }
       const newToken = crypto.randomUUID();
-      existing.confirmationToken = newToken;
-      this.confirmationTokenIndex.set(newToken, email);
-      return { subscriber: this.toEntity(existing), action: "resend" };
+      const expiresAt = new Date(
+        Date.now() + CONFIRMATION_TTL_MS,
+      ).toISOString();
+      await this.db
+        .update(subscribers)
+        .set({
+          confirmationToken: newToken,
+          confirmationExpiresAt: expiresAt,
+        })
+        .where(eq(subscribers.email, email));
+
+      return {
+        subscriber: this.toEntity({
+          ...existing,
+          confirmationToken: newToken,
+          confirmationExpiresAt: expiresAt,
+        }),
+        action: "resend",
+      };
     }
 
-    const token = crypto.randomUUID();
+    const unsubscribeToken = crypto.randomUUID();
     const confirmationToken = crypto.randomUUID();
-    const data: SubscriberData = {
-      email,
-      nickname,
-      token,
-      subscribedAt: new Date(),
-      activatedAt: null,
-      confirmationToken,
-      magicLinkToken: null,
-      magicLinkExpiresAt: null,
-      pendingEmail: null,
-      emailConfirmationToken: null,
-    };
+    const confirmationExpiresAt = new Date(
+      Date.now() + CONFIRMATION_TTL_MS,
+    ).toISOString();
 
-    this.subscribers.set(email, data);
-    this.tokenIndex.set(token, email);
-    this.confirmationTokenIndex.set(confirmationToken, email);
+    const [inserted] = await this.db
+      .insert(subscribers)
+      .values({
+        email,
+        nickname: nickname ?? null,
+        unsubscribeToken,
+        confirmationToken,
+        confirmationExpiresAt,
+      })
+      .returning();
 
-    return { subscriber: this.toEntity(data), action: "created" };
+    return { subscriber: this.toEntity(inserted), action: "created" };
   }
 
-  confirmSubscription(token: string): Subscriber | null {
-    const email = this.confirmationTokenIndex.get(token);
-    if (!email) return null;
+  async confirmSubscription(token: string): Promise<Subscriber | null> {
+    const row = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.confirmationToken, token))
+      .get();
 
-    const data = this.subscribers.get(email);
-    if (!data) return null;
+    if (!row) return null;
+    if (row.activatedAt) return null;
 
-    data.activatedAt = new Date();
-    this.confirmationTokenIndex.delete(token);
-    data.confirmationToken = null;
-
-    return this.toEntity(data);
-  }
-
-  requestMagicLink(email: string): string | null {
-    const data = this.subscribers.get(email);
-    if (!data || !data.activatedAt) return null;
-
-    if (data.magicLinkToken) {
-      this.magicLinkTokenIndex.delete(data.magicLinkToken);
-    }
-
-    const token = crypto.randomUUID();
-    data.magicLinkToken = token;
-    data.magicLinkExpiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS);
-    this.magicLinkTokenIndex.set(token, email);
-
-    return token;
-  }
-
-  validateMagicLink(token: string): Subscriber | null {
-    const email = this.magicLinkTokenIndex.get(token);
-    if (!email) return null;
-
-    const data = this.subscribers.get(email);
-    if (!data) return null;
-
-    if (!data.magicLinkExpiresAt || data.magicLinkExpiresAt < new Date()) {
-      this.magicLinkTokenIndex.delete(token);
-      data.magicLinkToken = null;
-      data.magicLinkExpiresAt = null;
+    if (
+      row.confirmationExpiresAt &&
+      new Date(row.confirmationExpiresAt) < new Date()
+    ) {
       return null;
     }
 
-    return this.toEntity(data);
+    const now = new Date().toISOString();
+
+    await this.db
+      .update(subscribers)
+      .set({
+        activatedAt: now,
+        confirmationToken: null,
+        confirmationExpiresAt: null,
+      })
+      .where(eq(subscribers.id, row.id));
+
+    return this.toEntity({
+      ...row,
+      activatedAt: now,
+      confirmationToken: null,
+      confirmationExpiresAt: null,
+    });
   }
 
-  consumeMagicLink(token: string): void {
-    const email = this.magicLinkTokenIndex.get(token);
-    if (!email) return;
+  async requestMagicLink(email: string): Promise<string | null> {
+    const row = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.email, email))
+      .get();
 
-    const data = this.subscribers.get(email);
-    if (data) {
-      data.magicLinkToken = null;
-      data.magicLinkExpiresAt = null;
-    }
-
-    this.magicLinkTokenIndex.delete(token);
-  }
-
-  updateNickname(email: string, nickname: string): boolean {
-    const data = this.subscribers.get(email);
-    if (!data) return false;
-
-    data.nickname = nickname;
-    return true;
-  }
-
-  requestEmailChange(email: string, newEmail: string): string | null {
-    const data = this.subscribers.get(email);
-    if (!data) return null;
-
-    if (data.emailConfirmationToken) {
-      this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
-    }
+    if (!row || !row.activatedAt) return null;
 
     const token = crypto.randomUUID();
-    data.pendingEmail = newEmail;
-    data.emailConfirmationToken = token;
-    this.emailConfirmationTokenIndex.set(token, email);
+    const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS).toISOString();
+
+    await this.db
+      .update(subscribers)
+      .set({
+        magicLinkToken: token,
+        magicLinkExpiresAt: expiresAt,
+      })
+      .where(eq(subscribers.id, row.id));
 
     return token;
   }
 
-  confirmEmailChange(token: string): Subscriber | null {
-    const currentEmail = this.emailConfirmationTokenIndex.get(token);
-    if (!currentEmail) return null;
+  async validateMagicLink(token: string): Promise<Subscriber | null> {
+    const row = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.magicLinkToken, token))
+      .get();
 
-    const data = this.subscribers.get(currentEmail);
-    if (!data || !data.pendingEmail) return null;
+    if (!row) return null;
 
-    const newEmail = data.pendingEmail;
-
-    // Update indexes
-    this.subscribers.delete(currentEmail);
-    if (data.token) {
-      this.tokenIndex.set(data.token, newEmail);
+    if (
+      !row.magicLinkExpiresAt ||
+      new Date(row.magicLinkExpiresAt) < new Date()
+    ) {
+      await this.db
+        .update(subscribers)
+        .set({
+          magicLinkToken: null,
+          magicLinkExpiresAt: null,
+        })
+        .where(eq(subscribers.id, row.id));
+      return null;
     }
-    if (data.magicLinkToken) {
-      this.magicLinkTokenIndex.set(data.magicLinkToken, newEmail);
-    }
 
-    data.email = newEmail;
-    data.pendingEmail = null;
-    this.emailConfirmationTokenIndex.delete(token);
-    data.emailConfirmationToken = null;
-
-    this.subscribers.set(newEmail, data);
-
-    return this.toEntity(data);
+    return this.toEntity(row);
   }
 
-  isEmailTaken(email: string): boolean {
-    return this.subscribers.has(email);
+  async consumeMagicLink(token: string): Promise<void> {
+    await this.db
+      .update(subscribers)
+      .set({
+        magicLinkToken: null,
+        magicLinkExpiresAt: null,
+      })
+      .where(eq(subscribers.magicLinkToken, token));
   }
 
-  listSubscribers(): Subscriber[] {
-    return Array.from(this.subscribers.values()).map((data) =>
-      this.toEntity(data),
-    );
+  async updateNickname(email: string, nickname: string): Promise<boolean> {
+    const result = await this.db
+      .update(subscribers)
+      .set({ nickname })
+      .where(eq(subscribers.email, email))
+      .returning({ id: subscribers.id });
+
+    return result.length > 0;
   }
 
-  removeSubscriber(email: string): boolean {
-    const data = this.subscribers.get(email);
-    if (!data) {
-      return false;
-    }
+  async requestEmailChange(
+    email: string,
+    newEmail: string,
+  ): Promise<string | null> {
+    const row = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.email, email))
+      .get();
 
-    this.tokenIndex.delete(data.token);
-    this.cleanupTokenIndexes(data);
-    this.subscribers.delete(email);
-    return true;
+    if (!row) return null;
+    if (!row.activatedAt) return null;
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+
+    await this.db
+      .update(subscribers)
+      .set({
+        pendingEmail: newEmail,
+        confirmationToken: token,
+        confirmationExpiresAt: expiresAt,
+      })
+      .where(eq(subscribers.id, row.id));
+
+    return token;
   }
 
-  unsubscribe(token: string): void {
-    const email = this.tokenIndex.get(token);
-    if (!email) {
-      return;
+  async confirmEmailChange(token: string): Promise<Subscriber | null> {
+    const row = await this.db
+      .select()
+      .from(subscribers)
+      .where(eq(subscribers.confirmationToken, token))
+      .get();
+
+    if (!row || !row.activatedAt || !row.pendingEmail) return null;
+
+    if (
+      row.confirmationExpiresAt &&
+      new Date(row.confirmationExpiresAt) < new Date()
+    ) {
+      return null;
     }
 
-    const data = this.subscribers.get(email);
-    if (data) {
-      this.cleanupTokenIndexes(data);
-    }
+    const newEmail = row.pendingEmail;
 
-    this.subscribers.delete(email);
-    this.tokenIndex.delete(token);
+    if (await this.isEmailTaken(newEmail)) return null;
+
+    await this.db
+      .update(subscribers)
+      .set({
+        email: newEmail,
+        pendingEmail: null,
+        confirmationToken: null,
+        confirmationExpiresAt: null,
+      })
+      .where(eq(subscribers.id, row.id));
+
+    return this.toEntity({
+      ...row,
+      email: newEmail,
+      pendingEmail: null,
+      confirmationToken: null,
+      confirmationExpiresAt: null,
+    });
+  }
+
+  async isEmailTaken(email: string): Promise<boolean> {
+    const row = await this.db
+      .select({ id: subscribers.id })
+      .from(subscribers)
+      .where(eq(subscribers.email, email))
+      .get();
+
+    return !!row;
+  }
+
+  async listSubscribers(): Promise<Subscriber[]> {
+    const rows = await this.db.select().from(subscribers).all();
+    return rows.map((row) => this.toEntity(row));
+  }
+
+  async removeSubscriber(email: string): Promise<boolean> {
+    const result = await this.db
+      .delete(subscribers)
+      .where(eq(subscribers.email, email))
+      .returning({ id: subscribers.id });
+
+    return result.length > 0;
+  }
+
+  async unsubscribe(token: string): Promise<void> {
+    await this.db
+      .delete(subscribers)
+      .where(eq(subscribers.unsubscribeToken, token));
   }
 }
