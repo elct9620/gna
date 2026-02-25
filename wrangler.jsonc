@@ -6,19 +6,21 @@
   "routes": [
     {
       "pattern": "gna.aotoki.me",
-      "custom_domain": true
-    }
+      "custom_domain": true,
+    },
   ],
   "vars": {
+    "AWS_REGION": "ap-northeast-1",
+    "FROM_ADDRESS": "noreply@aotoki.me",
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "gna",
-      "database_id": "708389f0-03b8-48fa-95d7-46d1a9648091"
-    }
-  ]
+      "database_id": "708389f0-03b8-48fa-95d7-46d1a9648091",
+    },
+  ],
 }
