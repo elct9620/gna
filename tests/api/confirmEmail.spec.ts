@@ -21,11 +21,10 @@ describe("GET /confirm", () => {
     });
   });
 
-  it("should return 400 when token is missing", async () => {
-    const res = await app.request("/confirm", {}, env);
-    expect(res.status).toBe(400);
-    const body = await res.json<{ error: string }>();
-    expect(body.error).toBe("Missing token");
+  it("should redirect to error page when token is missing", async () => {
+    const res = await app.request("/confirm", { redirect: "manual" }, env);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toContain("/confirmed?error=");
   });
 
   it("should redirect on valid subscription confirmation", async () => {
@@ -79,11 +78,14 @@ describe("GET /confirm", () => {
     );
   });
 
-  it("should return 400 for invalid token", async () => {
-    const res = await app.request("/confirm?token=invalid-token", {}, env);
-    expect(res.status).toBe(400);
-    const body = await res.json<{ error: string }>();
-    expect(body.error).toBe("Invalid or expired token");
+  it("should redirect to error page for invalid token", async () => {
+    const res = await app.request(
+      "/confirm?token=invalid-token",
+      { redirect: "manual" },
+      env,
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toContain("/confirmed?error=");
   });
 });
 
@@ -94,5 +96,13 @@ describe("GET /confirmed", () => {
     const html = await res.text();
     expect(html).toContain("Welcome!");
     expect(html).toContain("Subscription Confirmed");
+  });
+
+  it("should render error page when error param is present", async () => {
+    const res = await app.request("/confirmed?error=invalid_token", {}, env);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Confirmation Failed");
+    expect(html).not.toContain("Welcome!");
   });
 });
