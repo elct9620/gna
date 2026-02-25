@@ -2,8 +2,6 @@ import { injectable } from "tsyringe";
 
 import { Subscriber, type SubscriberData } from "@/entities/subscriber";
 
-export { Subscriber };
-
 export type SubscribeAction = "created" | "resend" | "none";
 
 export interface SubscribeResult {
@@ -24,6 +22,18 @@ export class SubscriptionService {
 
   private toEntity(data: SubscriberData): Subscriber {
     return new Subscriber(data);
+  }
+
+  private cleanupTokenIndexes(data: SubscriberData): void {
+    if (data.confirmationToken) {
+      this.confirmationTokenIndex.delete(data.confirmationToken);
+    }
+    if (data.magicLinkToken) {
+      this.magicLinkTokenIndex.delete(data.magicLinkToken);
+    }
+    if (data.emailConfirmationToken) {
+      this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
+    }
   }
 
   subscribe(email: string, nickname?: string): SubscribeResult {
@@ -197,15 +207,7 @@ export class SubscriptionService {
     }
 
     this.tokenIndex.delete(data.token);
-    if (data.confirmationToken) {
-      this.confirmationTokenIndex.delete(data.confirmationToken);
-    }
-    if (data.magicLinkToken) {
-      this.magicLinkTokenIndex.delete(data.magicLinkToken);
-    }
-    if (data.emailConfirmationToken) {
-      this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
-    }
+    this.cleanupTokenIndexes(data);
     this.subscribers.delete(email);
     return true;
   }
@@ -218,15 +220,7 @@ export class SubscriptionService {
 
     const data = this.subscribers.get(email);
     if (data) {
-      if (data.confirmationToken) {
-        this.confirmationTokenIndex.delete(data.confirmationToken);
-      }
-      if (data.magicLinkToken) {
-        this.magicLinkTokenIndex.delete(data.magicLinkToken);
-      }
-      if (data.emailConfirmationToken) {
-        this.emailConfirmationTokenIndex.delete(data.emailConfirmationToken);
-      }
+      this.cleanupTokenIndexes(data);
     }
 
     this.subscribers.delete(email);
