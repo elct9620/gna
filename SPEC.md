@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Gna is a self-hosted campaign platform running on Cloudflare Workers that replaces Mailchimp for content creators who publish via RSS feeds. It automatically generates campaigns from RSS feed updates and delivers them through multiple configured channels (email built-in, social channels extensible), providing subscription management through an embeddable CORS API.
+Gna is a self-hosted campaign platform running on Cloudflare Workers that replaces Mailchimp for content creators who publish via RSS feeds. It automatically generates campaigns from RSS feed updates and delivers them via email, providing subscription management through an embeddable CORS API.
 
 ## Users
 
@@ -16,21 +16,21 @@ In most deployments, there is a single Content Creator who is also the Administr
 
 ## Impacts
 
-| Area                    | Before (Mailchimp)                         | After (Gna)                                                            |
-| ----------------------- | ------------------------------------------ | ---------------------------------------------------------------------- |
-| Campaign creation       | Manual composition in third-party platform | Automatic generation from RSS feed entries with multi-channel delivery |
-| Subscription management | Platform-dependent, vendor lock-in         | Self-hosted API, embeddable on any site                                |
-| Cost                    | Monthly subscription fee                   | Cloudflare Workers free/paid tier only                                 |
-| Authentication          | Separate platform credentials              | Cloudflare Zero Trust, no custom auth                                  |
-| Integration             | Platform-specific widgets                  | CORS-enabled REST API for any origin                                   |
+| Area                    | Before (Mailchimp)                         | After (Gna)                                                    |
+| ----------------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| Campaign creation       | Manual composition in third-party platform | Automatic generation from RSS feed entries with email delivery |
+| Subscription management | Platform-dependent, vendor lock-in         | Self-hosted API, embeddable on any site                        |
+| Cost                    | Monthly subscription fee                   | Cloudflare Workers free/paid tier only                         |
+| Authentication          | Separate platform credentials              | Cloudflare Zero Trust, no custom auth                          |
+| Integration             | Platform-specific widgets                  | CORS-enabled REST API for any origin                           |
 
 ## Success Criteria
 
 - A visitor can subscribe via the embedded API, receive a confirmation email, and activate the subscription by clicking the confirmation link (double opt-in).
 - New RSS feed entries automatically trigger campaign generation within the configured schedule.
-- Campaigns can deliver to multiple configured channels; email delivery reaches all active subscribers with correct content.
+- Campaign email delivery reaches all active subscribers with correct content. Additional delivery channels — _to be decided_ (see §7).
 - The admin dashboard is accessible only through Cloudflare Zero Trust authentication.
-- The admin can manually compose, schedule, and send campaigns with per-channel content editing.
+- The admin can manually compose, schedule, and send campaigns.
 - A subscriber can authenticate via Magic Link and update their nickname and email address.
 
 ---
@@ -47,7 +47,7 @@ Admin interface for viewing, searching, and managing the subscriber list.
 
 ### 3. RSS Feed Campaign Generation
 
-Automated system that monitors RSS feeds and generates campaigns from new entries, triggered by Cron schedule or webhook push. Each campaign creates deliveries for all configured channels.
+Automated system that monitors RSS feeds and generates campaigns from new entries, triggered by Cron schedule or webhook push.
 
 ### 4. Admin Authentication
 
@@ -55,7 +55,7 @@ Management dashboard protected by Cloudflare Zero Trust Access, requiring no cus
 
 ### 5. Campaign Publishing & Scheduling
 
-Manual campaign composition with per-channel content editing and immediate send or scheduled delivery.
+Manual campaign composition with immediate send or scheduled delivery.
 
 ### 6. Subscriber Profile Management
 
@@ -63,7 +63,7 @@ Subscribers can manage their own profile (nickname and email address) through a 
 
 ### 7. Channel Management
 
-Configuration of delivery channels for campaigns. Email is built-in and always present. Social media channels are extensible — specific platforms to be decided.
+Email is the only delivery channel; it is always active and requires no configuration. Channel management (adding and configuring additional delivery channels) — _to be decided_.
 
 ---
 
@@ -91,7 +91,7 @@ Configuration of delivery channels for campaigns. Email is built-in and always p
 
 **Action:** On the next scheduled Cron run (or via incoming webhook), the system detects new RSS entries.
 
-**Outcome:** The system generates a campaign from the new entries and creates a delivery for each configured channel. Email delivery reaches all active subscribers; other channel deliveries publish content in the channel-appropriate format.
+**Outcome:** The system generates a campaign from the new entries and creates an email Delivery. The email is sent to all active subscribers.
 
 ### Admin Manages Subscribers
 
@@ -105,9 +105,9 @@ Configuration of delivery channels for campaigns. Email is built-in and always p
 
 **Context:** The administrator wants to send a one-off campaign not derived from RSS content.
 
-**Action:** The admin composes a campaign in the dashboard, edits per-channel content, and chooses to send immediately or schedule for later.
+**Action:** The admin composes a campaign in the dashboard and chooses to send immediately or schedule for later.
 
-**Outcome:** The campaign creates deliveries for each configured channel. Each delivery is processed at the specified time — email delivery reaches all active subscribers, other channel deliveries publish in their respective formats.
+**Outcome:** The campaign creates an email Delivery. The email is sent to all active subscribers at the specified time.
 
 ### Subscriber Accesses Profile
 
@@ -240,7 +240,7 @@ activated ──(admin remove)──▶ deleted
 | ----------------- | --------------------------------------------------------------- |
 | Content per entry | Title, summary or excerpt, and link to full article             |
 | Batching          | All new entries since last check are combined into one campaign |
-| Delivery creation | System creates one Delivery record per configured Channel       |
+| Delivery creation | System creates one email Delivery record                        |
 | Empty batch       | No campaign generated                                           |
 
 #### Email Delivery
@@ -254,13 +254,7 @@ activated ──(admin remove)──▶ deleted
 | Email footer     | Include unsubscribe link and profile management link                                                                                  |
 | Failure handling | Log failed deliveries; do not change subscriber state on transient failures                                                           |
 
-#### Other Channel Deliveries
-
-| Field              | Rule                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| Content generation | Generate channel-appropriate content from the campaign's source entries                |
-| Format constraints | Each channel defines its own content format and length limits (see Channel Management) |
-| Failure handling   | Log failed deliveries per channel; one channel's failure does not block other channels |
+Multi-channel delivery for RSS-triggered campaigns — _to be decided_ (see §7 Channel Management).
 
 #### Post-Delivery
 
@@ -304,13 +298,43 @@ activated ──(admin remove)──▶ deleted
 
 #### Manual Composition
 
-| Field               | Rule                                                                            |
-| ------------------- | ------------------------------------------------------------------------------- |
-| Required fields     | Subject line and body content                                                   |
-| Body format         | HTML with plain-text fallback (for email channel)                               |
-| Per-channel content | Admin can edit content for each configured channel before publishing            |
-| Content constraints | Each channel enforces its own format and length limits (see Channel Management) |
-| Preview             | Admin can preview before sending                                                |
+| Field           | Rule                                           |
+| --------------- | ---------------------------------------------- |
+| Required fields | Subject line and body content                  |
+| Body format     | HTML with plain-text fallback                  |
+| Content editing | Admin edits campaign content before publishing |
+| Preview         | Admin can preview before sending               |
+
+Per-channel content editing — _to be decided_ alongside Channel Management (see §7).
+
+#### Campaign Admin Operations
+
+| Operation       | Rule                                                                             |
+| --------------- | -------------------------------------------------------------------------------- |
+| List campaigns  | Paginated list; displays subject, state, scheduled time, and delivery summary    |
+| Create campaign | Create new campaign in `draft` state with subject and body                       |
+| View campaign   | Display campaign detail with all fields and associated Delivery records          |
+| Update campaign | Allowed only in `draft` or `scheduled` state; update subject, body, scheduled_at |
+| Delete campaign | Allowed only in `draft` state; hard delete campaign and its Delivery records     |
+
+#### Campaign Pagination
+
+| Field        | Rule                                                       |
+| ------------ | ---------------------------------------------------------- |
+| Default size | 20 items per page                                          |
+| Maximum size | 100 items per page                                         |
+| Method       | Offset-based (`?page=1&per_page=20`)                       |
+| Sort default | Created date, newest first                                 |
+| Filter       | By state (`draft`, `scheduled`, `publishing`, `published`) |
+
+#### Campaign Fields
+
+| Field          | Required | Description                                                              |
+| -------------- | -------- | ------------------------------------------------------------------------ |
+| `subject`      | Yes      | Campaign subject line                                                    |
+| `body`         | Yes      | Campaign body content (HTML with plain-text fallback)                    |
+| `state`        | Yes      | Current campaign state (`draft`, `scheduled`, `publishing`, `published`) |
+| `scheduled_at` | No       | Future send time; required when state is `scheduled`                     |
 
 #### Campaign States
 
@@ -331,7 +355,8 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ pub
 
 ```
 pending ──(campaign starts publishing)──▶ sending ──(complete)──▶ sent
-                                                   ──(error)───▶ failed
+                                             ▲     ──(error)───▶ failed
+                                             └──(admin retry)───┘
 ```
 
 | State     | Description                                    |
@@ -341,22 +366,44 @@ pending ──(campaign starts publishing)──▶ sending ──(complete)─�
 | `sent`    | Delivery completed successfully                |
 | `failed`  | Delivery failed; error details logged          |
 
+#### Delivery Fields
+
+| Field           | Required | Description                                             |
+| --------------- | -------- | ------------------------------------------------------- |
+| `channel_type`  | Yes      | Delivery channel (currently only `email`)               |
+| `content`       | No       | Channel-specific content; falls back to campaign body   |
+| `state`         | Yes      | Delivery state (`pending`, `sending`, `sent`, `failed`) |
+| `sent_count`    | No       | Number of successful sends                              |
+| `failure_count` | No       | Number of failed sends                                  |
+| `error_detail`  | No       | Error information when state is `failed`                |
+
+#### Retry Operations
+
+| Operation      | Rule                                                   |
+| -------------- | ------------------------------------------------------ |
+| Retry delivery | Allowed only when Delivery state is `failed`           |
+| Retry effect   | `failed` → `sending`; Campaign returns to `publishing` |
+| Scope          | Retries a single Delivery, not the entire Campaign     |
+
 #### Campaign–Delivery Transitions
 
-| Trigger                                  | Campaign transition                  |
-| ---------------------------------------- | ------------------------------------ |
-| At least one Delivery moves to `sending` | Campaign transitions to `publishing` |
-| All Deliveries reach `sent` or `failed`  | Campaign transitions to `published`  |
+Campaign state is **derived** from its Delivery states:
+
+| Trigger                                 | Campaign transition                  |
+| --------------------------------------- | ------------------------------------ |
+| Any Delivery moves to `sending`         | Campaign transitions to `publishing` |
+| All Deliveries reach `sent` or `failed` | Campaign transitions to `published`  |
+| A `failed` Delivery is retried          | Campaign returns to `publishing`     |
 
 #### Schedule Operations
 
-| Operation        | Rule                                                         |
-| ---------------- | ------------------------------------------------------------ |
-| Send immediately | Transition from `draft` to `publishing`                      |
-| Schedule         | Set future send time; transition from `draft` to `scheduled` |
-| Cancel schedule  | Revert from `scheduled` to `draft`                           |
-| Edit scheduled   | Allowed only while in `scheduled` state                      |
-| Past send time   | Reject; require a future timestamp                           |
+| Operation        | Rule                                                                 |
+| ---------------- | -------------------------------------------------------------------- |
+| Send immediately | Transition all Deliveries to `sending`; Campaign enters `publishing` |
+| Schedule         | Set future send time; transition from `draft` to `scheduled`         |
+| Cancel schedule  | Revert from `scheduled` to `draft`                                   |
+| Edit scheduled   | Allowed only while in `scheduled` state                              |
+| Past send time   | Reject; require a future timestamp                                   |
 
 ### 6. Subscriber Profile Management
 
@@ -412,59 +459,36 @@ pending ──(campaign starts publishing)──▶ sending ──(complete)─�
 
 ### 7. Channel Management
 
-#### Channel Definition
-
-A Channel is a configured delivery target for campaigns. Each channel defines its type, content format constraints, and delivery method.
-
-| Field               | Rule                                                                                       |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| Type                | Identifier for the channel kind (e.g., `email`, social platforms TBD)                      |
-| Content constraints | Channel-specific format and length limits (e.g., email allows HTML; social may limit text) |
-| Delivery method     | How content is delivered through the channel                                               |
-
-#### Built-in Channels
-
-| Channel | Status   | Description                                                  |
-| ------- | -------- | ------------------------------------------------------------ |
-| Email   | Built-in | Always present; delivers to all active subscribers via email |
-
-#### Social Channels
-
-| Field              | Rule                                                                              |
-| ------------------ | --------------------------------------------------------------------------------- |
-| Availability       | Extensible; specific social platforms — _to be decided_                           |
-| Configuration      | Admin configures which social channels are active for their deployment            |
-| Content generation | Each social channel generates content appropriate to its platform's format limits |
+Email is the only delivery channel; it is always active and requires no configuration. Channel management (adding and configuring additional delivery channels) — _to be decided_.
 
 ---
 
 ## Error Scenarios
 
-| Scenario                                                                            | Behavior                                                                                                                    |
-| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| RSS feed unreachable                                                                | Log error; retry on next scheduled run; do not generate campaign                                                            |
-| RSS feed returns invalid XML                                                        | Log error; skip this run; notify admin after 3 consecutive failures (notification mechanism — _to be decided_)              |
-| Email service unavailable                                                           | Queue for retry; log error                                                                                                  |
-| Email delivery permanently bounces                                                  | Store bounce event (retained 7 days); keep subscriber `activated`; admin may remove subscriber manually                     |
-| Database unavailable                                                                | API returns `503 Service Unavailable`; Cron logs error, retries next run                                                    |
-| Subscription confirmation token expired or invalid                                  | Display error page prompting visitor to resubscribe                                                                         |
-| Subscription confirmation for already-active email                                  | Return success (idempotent)                                                                                                 |
-| Concurrent subscribe requests for same email                                        | Idempotent; one record created; both requests return success                                                                |
-| Schedule send time in the past                                                      | Reject with `400 Bad Request`                                                                                               |
-| Campaign delivery partially completes                                               | Log aggregate failure count per delivery; resume strategy — _to be decided (depends on email service provider selection)_   |
-| Per-channel delivery failure (one channel fails, others succeed)                    | Failed channel's Delivery transitions to `failed`; other channels proceed independently; Campaign still reaches `published` |
-| Campaign operation on invalid state (e.g., edit `published`, schedule `publishing`) | `409 Conflict` — `{ "error": "Operation not allowed in current state" }`                                                    |
-| Admin request without JWT header                                                    | `401 Unauthorized` — `{ "error": "Authentication required" }`                                                               |
-| Admin request with invalid JWT                                                      | `403 Forbidden` — `{ "error": "Invalid token" }`                                                                            |
-| Admin request with expired JWT                                                      | `403 Forbidden` — `{ "error": "Token expired" }`                                                                            |
-| JWKS endpoint unreachable                                                           | `503 Service Unavailable`; log error                                                                                        |
-| Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set`)      | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details     |
-| Magic Link token expired or invalid                                                 | Display error page prompting subscriber to request a new link                                                               |
-| Magic Link token already used                                                       | Display error page prompting subscriber to request a new link                                                               |
-| Email confirmation token expired                                                    | Do not update email or activate subscription; display error page prompting subscriber to restart process                    |
-| New email already registered by another subscriber (`activated` or `pending`)       | Display error page; email was claimed since the change was requested                                                        |
-| Nickname exceeds length limit                                                       | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`                                                       |
-| Magic Link request rate exceeded                                                    | `429 Too Many Requests`                                                                                                     |
+| Scenario                                                                            | Behavior                                                                                                                |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| RSS feed unreachable                                                                | Log error; retry on next scheduled run; do not generate campaign                                                        |
+| RSS feed returns invalid XML                                                        | Log error; skip this run; notify admin after 3 consecutive failures (notification mechanism — _to be decided_)          |
+| Email service unavailable                                                           | Queue for retry; log error                                                                                              |
+| Email delivery permanently bounces                                                  | Store bounce event (retained 7 days); keep subscriber `activated`; admin may remove subscriber manually                 |
+| Database unavailable                                                                | API returns `503 Service Unavailable`; Cron logs error, retries next run                                                |
+| Subscription confirmation token expired or invalid                                  | Display error page prompting visitor to resubscribe                                                                     |
+| Subscription confirmation for already-active email                                  | Return success (idempotent)                                                                                             |
+| Concurrent subscribe requests for same email                                        | Idempotent; one record created; both requests return success                                                            |
+| Schedule send time in the past                                                      | Reject with `400 Bad Request`                                                                                           |
+| Delivery failure                                                                    | Delivery transitions to `failed` with error details; admin can retry the Delivery (see Retry Operations)                |
+| Campaign operation on invalid state (e.g., edit `published`, schedule `publishing`) | `409 Conflict` — `{ "error": "Operation not allowed in current state" }`                                                |
+| Admin request without JWT header                                                    | `401 Unauthorized` — `{ "error": "Authentication required" }`                                                           |
+| Admin request with invalid JWT                                                      | `403 Forbidden` — `{ "error": "Invalid token" }`                                                                        |
+| Admin request with expired JWT                                                      | `403 Forbidden` — `{ "error": "Token expired" }`                                                                        |
+| JWKS endpoint unreachable                                                           | `503 Service Unavailable`; log error                                                                                    |
+| Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set`)      | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details |
+| Magic Link token expired or invalid                                                 | Display error page prompting subscriber to request a new link                                                           |
+| Magic Link token already used                                                       | Display error page prompting subscriber to request a new link                                                           |
+| Email confirmation token expired                                                    | Do not update email or activate subscription; display error page prompting subscriber to restart process                |
+| New email already registered by another subscriber (`activated` or `pending`)       | Display error page; email was claimed since the change was requested                                                    |
+| Nickname exceeds length limit                                                       | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`                                                   |
+| Magic Link request rate exceeded                                                    | `429 Too Many Requests`                                                                                                 |
 
 ---
 
@@ -482,7 +506,7 @@ The system retains personally identifiable information only for as long as neces
 | Unsubscribe token               | No       | Authenticate unsubscribe                            | Deleted with subscriber record                |
 | Rate limit IP                   | Yes      | Enforce subscribe rate limit                        | Rate-limit window only (ephemeral)            |
 | Campaign content                | No       | Archive sent campaigns                              | Indefinite (admin content)                    |
-| Delivery records                | No       | Track per-channel delivery state                    | Indefinite (admin content)                    |
+| Delivery records                | No       | Track delivery state                                | Indefinite (admin content)                    |
 | Delivery statistics             | No       | Aggregate analytics (per-campaign and per-delivery) | Indefinite (no PII)                           |
 | Bounce events                   | Yes      | Admin reviews delivery failures                     | Ephemeral; auto-purged after 7 days           |
 | Subscriber nickname             | Possibly | Campaign email personalization, admin display       | While active; deleted with subscriber record  |
@@ -519,7 +543,7 @@ activated ──(admin remove)──▶ deleted
 | ----------------------- | -------------------------------------------------------------------- |
 | Per-recipient tracking  | Not permitted                                                        |
 | Per-campaign statistics | Total sent count, total failure count (aggregated across deliveries) |
-| Per-delivery statistics | Per-channel sent count, per-channel failure count                    |
+| Per-delivery statistics | Sent count, failure count                                            |
 | Statistics retention    | Indefinite (contains no PII)                                         |
 | Bounce event tracking   | Permitted as exception; ephemeral storage only (see Bounce Events)   |
 
@@ -548,12 +572,12 @@ Bounce events are an explicit exception to the per-recipient tracking prohibitio
 
 ### Storage
 
-| Data                                           | Storage       |
-| ---------------------------------------------- | ------------- |
-| Subscribers                                    | Cloudflare D1 |
-| Campaigns (content, state, schedule)           | Cloudflare D1 |
-| Deliveries (per-channel content, state, stats) | Cloudflare D1 |
-| RSS feed state (last processed timestamp)      | Cloudflare D1 |
+| Data                                      | Storage       |
+| ----------------------------------------- | ------------- |
+| Subscribers                               | Cloudflare D1 |
+| Campaigns (content, state, schedule)      | Cloudflare D1 |
+| Deliveries (content, state, stats)        | Cloudflare D1 |
+| RSS feed state (last processed timestamp) | Cloudflare D1 |
 
 ### Email Delivery
 
@@ -562,7 +586,7 @@ To be decided:
 - Email service provider
 - Options: Resend, SendGrid, Mailgun, Amazon SES
 - Selection criteria: Cloudflare Workers compatibility, cost, API simplicity
-- Partial send recovery strategy (blocked by provider selection; see Error Scenarios)
+- Partial send recovery strategy (admin can retry failed Deliveries; see Retry Operations)
 
 ### Cron Schedule Defaults
 
@@ -577,9 +601,9 @@ To be decided:
 
 | Term                       | Definition                                                                                                                                               |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Campaign                   | A content delivery action, either generated from RSS or manually composed, delivered through one or more configured channels                             |
-| Delivery                   | A per-channel record within a campaign; each Delivery tracks the content, state, and statistics for one channel                                          |
-| Channel                    | A configured delivery target for campaigns (e.g., email, social media); defines content format constraints and delivery method                           |
+| Campaign                   | A content delivery action, either generated from RSS or manually composed, delivered via email                                                           |
+| Delivery                   | A record within a campaign tracking the content, state, and statistics for a delivery channel (currently email only)                                     |
+| Channel                    | A delivery target for campaigns; currently only email is supported (see §7 for future extensibility)                                                     |
 | Subscriber                 | A person identified by email address who has opted in to receive campaign emails                                                                         |
 | Feed entry                 | A single item in an RSS feed representing a published piece of content                                                                                   |
 | Unsubscribe token          | A unique, per-subscriber token for authenticating unsubscribe requests without login                                                                     |
