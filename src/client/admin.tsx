@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import type { InferResponseType } from "hono/client";
 
 import {
@@ -36,6 +37,7 @@ type Subscriber = InferResponseType<
 >["subscribers"][number];
 
 export function Admin() {
+  const { pathname } = useLocation();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export function Admin() {
   return (
     <SidebarProvider>
       <title>Admin Dashboard - Gna</title>
-      <AppSidebar />
+      <AppSidebar pathname={pathname} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />

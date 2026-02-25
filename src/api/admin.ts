@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import { container } from "@/container";
+import { NotificationService } from "@/services/notificationService";
 import { SubscriptionService } from "@/services/subscriptionService";
+
+const VALID_TEMPLATES = ["confirmation", "magic_link", "email_change"] as const;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const app = new Hono()
   .get("/subscribers", async (c) => {
@@ -25,6 +29,32 @@ const app = new Hono()
     }
 
     return c.json({ message: "Subscriber removed" });
+  })
+  .post("/test-email/template", async (c) => {
+    const { template, to } = await c.req.json<{
+      template: string;
+      to: string;
+    }>();
+
+    if (
+      !VALID_TEMPLATES.includes(template as (typeof VALID_TEMPLATES)[number])
+    ) {
+      return c.json({ error: "Invalid template name" }, 400);
+    }
+
+    if (!EMAIL_REGEX.test(to)) {
+      return c.json({ error: "Invalid email address" }, 400);
+    }
+
+    const service = container.resolve(NotificationService);
+
+    try {
+      await service.sendTestTemplateEmail(template, to);
+    } catch {
+      return c.json({ error: "Email service unavailable" }, 503);
+    }
+
+    return c.json({ status: "sent" });
   });
 
 export default app;

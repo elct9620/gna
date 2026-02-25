@@ -71,4 +71,50 @@ export class NotificationService {
       actionText: "Confirm Email Change",
     });
   }
+
+  async sendTestTemplateEmail(template: string, to: string): Promise<void> {
+    const demoData: Record<string, { subject: string; props: BaseEmailProps }> =
+      {
+        confirmation: {
+          subject: "Confirm your subscription",
+          props: {
+            previewText: "Please confirm your newsletter subscription",
+            heading: "Confirm Your Subscription",
+            bodyText:
+              "Thank you for subscribing! Click the button below to confirm your subscription.",
+            actionUrl: `${this.baseUrl}/confirm?token=test-token-example`,
+            actionText: "Confirm Subscription",
+          },
+        },
+        magic_link: {
+          subject: "Your profile access link",
+          props: {
+            previewText: "Access your subscriber profile",
+            heading: "Your Profile Access Link",
+            bodyText:
+              "Click the button below to access your subscriber profile. This link expires in 15 minutes.",
+            actionUrl: `${this.baseUrl}/profile?token=test-token-example`,
+            actionText: "Access Profile",
+          },
+        },
+        email_change: {
+          subject: "Confirm your email change",
+          props: {
+            previewText: "Confirm your email address change",
+            heading: "Confirm Email Change",
+            bodyText:
+              "Click the button below to confirm your new email address for the newsletter.",
+            actionUrl: `${this.baseUrl}/confirm?token=test-token-example`,
+            actionText: "Confirm Email Change",
+          },
+        },
+      };
+
+    const data = demoData[template];
+    if (!data) {
+      throw new Error(`Unknown template: ${template}`);
+    }
+
+    await this.renderAndSend(to, `[TEST] ${data.subject}`, data.props);
+  }
 }

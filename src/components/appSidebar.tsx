@@ -1,4 +1,4 @@
-import { Newspaper, Users } from "lucide-react";
+import { Mail, Newspaper, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -13,7 +13,10 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  pathname,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { pathname?: string }) {
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -36,10 +39,21 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton isActive asChild>
+                <SidebarMenuButton isActive={pathname === "/admin"} asChild>
                   <a href="/admin">
                     <Users className="size-4" />
                     <span>Subscribers</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={pathname === "/admin/test-email"}
+                  asChild
+                >
+                  <a href="/admin/test-email">
+                    <Mail className="size-4" />
+                    <span>Test Email</span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
