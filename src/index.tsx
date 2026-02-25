@@ -60,6 +60,18 @@ app.get("/admin/api/subscribers", async (c) => {
   });
 });
 
+app.delete("/admin/api/subscribers/:email", async (c) => {
+  const email = c.req.param("email");
+  const service = container.resolve(SubscriptionService);
+  const removed = service.removeSubscriber(email);
+
+  if (!removed) {
+    return c.json({ error: "Subscriber not found" }, 404);
+  }
+
+  return c.json({ message: "Subscriber removed" });
+});
+
 const { query, dataRoutes } = createStaticHandler(routes);
 
 app.all("*", async (c) => {

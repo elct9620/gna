@@ -42,6 +42,17 @@ export class SubscriptionService {
     return Array.from(this.subscribers.values());
   }
 
+  removeSubscriber(email: string): boolean {
+    const subscriber = this.subscribers.get(email);
+    if (!subscriber) {
+      return false;
+    }
+
+    this.tokenIndex.delete(subscriber.token);
+    this.subscribers.delete(email);
+    return true;
+  }
+
   unsubscribe(token: string): void {
     const email = this.tokenIndex.get(token);
     if (!email) {

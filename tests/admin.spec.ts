@@ -100,3 +100,55 @@ describe("GET /admin/api/subscribers", () => {
     expect(data.subscribers[0].subscribedAt).toBeDefined();
   });
 });
+
+describe("DELETE /admin/api/subscribers/:email", () => {
+  it("should remove an existing subscriber", async () => {
+    await app.request(
+      "/api/subscribe",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "remove@example.com" }),
+      },
+      authBypass,
+    );
+
+    const res = await app.request(
+      "/admin/api/subscribers/remove@example.com",
+      { method: "DELETE" },
+      authBypass,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ message: "Subscriber removed" });
+
+    const listRes = await app.request("/admin/api/subscribers", {}, authBypass);
+    const data = await listRes.json<{ subscribers: Array<{ email: string }> }>();
+    expect(data.subscribers.find((s) => s.email === "remove@example.com")).toBeUndefined();
+  });
+
+  it("should return 404 for non-existent subscriber", async () => {
+    const res = await app.request(
+      "/admin/api/subscribers/nonexistent@example.com",
+      { method: "DELETE" },
+      authBypass,
+    );
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Subscriber not found" });
+  });
+
+  it("should require admin auth", async () => {
+    const authEnv = {
+      ...env,
+      DISABLE_AUTH: "",
+      CF_ACCESS_TEAM_NAME: "myteam",
+      CF_ACCESS_AUD: "test-aud",
+    };
+
+    const res = await app.request(
+      "/admin/api/subscribers/test@example.com",
+      { method: "DELETE" },
+      authEnv,
+    );
+    expect(res.status).toBe(401);
+  });
+});

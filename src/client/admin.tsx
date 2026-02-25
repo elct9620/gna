@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { AppSidebar } from "@/components/appSidebar";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -55,13 +67,14 @@ export function Admin() {
                 <TableHead>Email</TableHead>
                 <TableHead>Nickname</TableHead>
                 <TableHead>Subscribed At</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {subscribers.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={3}
+                    colSpan={4}
                     className="text-center text-muted-foreground"
                   >
                     No subscribers yet.
@@ -76,6 +89,48 @@ export function Admin() {
                     </TableCell>
                     <TableCell>
                       {new Date(subscriber.subscribedAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            Remove
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Remove subscriber
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove{" "}
+                              {subscriber.email}? This action cannot be
+                              undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                const res = await fetch(
+                                  `/admin/api/subscribers/${encodeURIComponent(subscriber.email)}`,
+                                  { method: "DELETE" },
+                                );
+
+                                if (res.ok) {
+                                  setSubscribers((prev) =>
+                                    prev.filter(
+                                      (s) => s.email !== subscriber.email,
+                                    ),
+                                  );
+                                }
+                              }}
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))
