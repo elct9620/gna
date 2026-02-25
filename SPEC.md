@@ -31,6 +31,7 @@ In most deployments, there is a single Content Creator who is also the Administr
 - Newsletters are delivered to all active subscribers with correct content.
 - The admin dashboard is accessible only through Cloudflare Zero Trust authentication.
 - The admin can manually compose, schedule, and send newsletters.
+- A subscriber can authenticate via Magic Link and update their nickname and email address.
 
 ---
 
@@ -55,6 +56,10 @@ Management dashboard protected by Cloudflare Zero Trust Access, requiring no cus
 ### 5. Newsletter Publishing & Scheduling
 
 Manual newsletter composition with immediate send or scheduled delivery.
+
+### 6. Subscriber Profile Management
+
+Subscribers can manage their own profile (nickname and email address) through a passwordless Magic Link authentication flow. After verifying identity via email, subscribers can update their nickname immediately and request an email address change with confirmation.
 
 ---
 
@@ -100,6 +105,30 @@ Manual newsletter composition with immediate send or scheduled delivery.
 
 **Outcome:** The newsletter is delivered to all active subscribers at the specified time.
 
+### Subscriber Accesses Profile
+
+**Context:** A subscriber wants to update their profile. They follow a profile link in a newsletter or visit the profile page directly.
+
+**Action:** The subscriber enters their email address. The system sends a Magic Link to that address. The subscriber clicks the link in the email.
+
+**Outcome:** The subscriber is authenticated and sees a profile editing page displaying their current email and nickname.
+
+### Subscriber Updates Nickname
+
+**Context:** An authenticated subscriber is on the profile editing page.
+
+**Action:** The subscriber enters a new nickname and saves the change.
+
+**Outcome:** The nickname is updated immediately. Subsequent newsletters use the new nickname for personalization.
+
+### Subscriber Updates Email
+
+**Context:** An authenticated subscriber is on the profile editing page.
+
+**Action:** The subscriber enters a new email address. The system sends a confirmation email to the new address. The subscriber clicks the confirmation link.
+
+**Outcome:** The subscriber's email is updated to the new address. Subsequent newsletters are delivered to the new email.
+
 ---
 
 ## Feature Behaviors
@@ -111,9 +140,9 @@ Manual newsletter composition with immediate send or scheduled delivery.
 | Field              | Rule                                                         |
 | ------------------ | ------------------------------------------------------------ |
 | Endpoint           | `POST /api/subscribe`                                        |
-| Request body       | `{ "email": "<address>" }`                                   |
+| Request body       | `{ "email": "<address>", "nickname": "<name>" }` (`nickname` is optional) |
 | CORS               | Allow origins configured per deployment                      |
-| Validation         | Reject syntactically invalid email addresses (RFC 5321 addr-spec) |
+| Validation         | Reject syntactically invalid email addresses (RFC 5321 addr-spec); if `nickname` provided, must be 1–50 characters |
 | Duplicate email    | Return success without creating a second record (idempotent) |
 | Success response   | `201 Created` — `{ "status": "subscribed" }`                 |
 | Validation failure | `400 Bad Request` — `{ "error": "<reason>" }`                |
@@ -149,14 +178,22 @@ active ──(admin remove)──▶ [deleted]
 | `active`    | Receiving newsletters                      |
 | `[deleted]` | Record removed from the database           |
 
+#### Subscriber Fields
+
+| Field             | Required | Description                                       |
+| ----------------- | -------- | ------------------------------------------------- |
+| `email`           | Yes      | Subscriber's email address                        |
+| `nickname`        | No       | Display name for personalization and admin display |
+| `unsubscribe_token` | Yes   | Unique token for authenticating unsubscribe       |
+
 #### Admin Operations
 
-| Operation        | Behavior                                                         |
-| ---------------- | ---------------------------------------------------------------- |
-| List subscribers | Paginated list; default shows all active subscribers             |
-| Search           | Filter by email (partial match)                                  |
-| Remove           | Hard delete from database                                        |
-| Export           | Download subscriber list as CSV                                  |
+| Operation        | Behavior                                                                    |
+| ---------------- | --------------------------------------------------------------------------- |
+| List subscribers | Paginated list; default shows all active subscribers; displays email and nickname |
+| Search           | Filter by email or nickname (partial match)                                 |
+| Remove           | Hard delete from database                                                   |
+| Export           | Download subscriber list as CSV                                             |
 
 ### 3. RSS Feed Newsletter Generation
 
@@ -177,6 +214,7 @@ active ──(admin remove)──▶ [deleted]
 | Content per entry | Title, summary or excerpt, and link to full article               |
 | Batching          | All new entries since last check are combined into one newsletter |
 | Template          | Render entries into email HTML using a configured template        |
+| Personalization   | Template may include subscriber nickname (e.g., "Hi, {nickname}"); fallback to generic greeting (e.g., "Hi") when nickname is not set |
 | Empty batch       | No newsletter generated                                           |
 
 #### Delivery
@@ -185,6 +223,7 @@ active ──(admin remove)──▶ [deleted]
 | ---------------- | --------------------------------------------------------------------------- |
 | Recipients       | All subscribers in `active` state                                           |
 | Email headers    | Include `List-Unsubscribe` header with one-click unsubscribe URL (RFC 8058) |
+| Email footer     | Include unsubscribe link and profile management link                        |
 | Failure handling | Log failed deliveries; do not change subscriber state on transient failures |
 | After delivery   | Update last processed timestamp to the latest entry                         |
 
@@ -255,6 +294,57 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Edit scheduled   | Allowed only while in `scheduled` state                      |
 | Past send time   | Reject; require a future timestamp                           |
 
+### 6. Subscriber Profile Management
+
+#### Magic Link Authentication
+
+| Field                   | Rule                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| Endpoint                | `POST /api/profile/request-link`                                                         |
+| Request body            | `{ "email": "<address>" }`                                                               |
+| Behavior                | Generate a one-time token and send a Magic Link to the provided email address            |
+| Token lifetime          | 15 minutes from creation                                                                 |
+| Token usage             | Single-use; `GET /profile` validates but does not consume; consumed on `POST /api/profile/update` submission; also expires after 15 minutes |
+| Repeat request          | Invalidate any existing unexpired token; issue a new token                               |
+| Email not found         | Return success without sending email (prevent email enumeration)                         |
+| Success response        | `200 OK` — `{ "status": "link_sent" }`                                                   |
+| Validation failure      | `400 Bad Request` — `{ "error": "<reason>" }`                                            |
+| Rate limiting           | 3 requests per email per hour; exceeded returns `429 Too Many Requests`                  |
+
+#### Profile Page
+
+| Field                   | Rule                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| Endpoint                | `GET /profile?token=<magic-link-token>`                                       |
+| Valid token             | Validate token without consuming it; render profile page showing current email and nickname |
+| Invalid or expired token| Display error page prompting subscriber to request a new Magic Link           |
+
+#### Update Profile
+
+| Field                   | Rule                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| Endpoint                | `POST /api/profile/update`                                                                        |
+| Request body            | `{ "token": "<magic-link-token>", "nickname": "<name>", "email": "<new-address>" }` (both fields optional; omitted fields are left unchanged) |
+| Token consumed          | Token is invalidated immediately after successful processing                                      |
+| Nickname validation     | Must be 1–50 characters; no leading or trailing whitespace                                        |
+| Email unchanged         | If `email` matches current address or is omitted, no email confirmation is triggered              |
+| Email already in use    | `409 Conflict` — `{ "error": "Email already registered" }`; no fields are updated; token is NOT consumed |
+| Email changed           | Generate email confirmation token and send confirmation email to the new address; nickname update (if provided) still applies immediately |
+| Confirmation token lifetime | 24 hours from creation                                                                        |
+| Repeat submission       | Since token is consumed on first submission, repeat attempts return `401 Unauthorized`            |
+| Success response        | `200 OK` — `{ "status": "updated" }` (nickname applied immediately; email pending confirmation if changed) |
+| Invalid or expired token| `401 Unauthorized` — `{ "error": "Invalid or expired token" }`                                   |
+| Validation failure      | `400 Bad Request` — `{ "error": "<reason>" }`; token is NOT consumed                             |
+
+#### Confirm Email Change
+
+| Field                   | Rule                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| Endpoint                | `GET /api/profile/confirm-email?token=<confirm-token>`                        |
+| Valid token             | Update subscriber email; display confirmation page                            |
+| Expired token           | Display error page; subscriber must restart the email change process          |
+| Email now taken         | Display error page; email was registered by another subscriber since request  |
+
 ---
 
 ## Error Scenarios
@@ -274,6 +364,12 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Admin request with expired JWT               | `403 Forbidden` — `{ "error": "Token expired" }`                        |
 | JWKS endpoint unreachable                    | `503 Service Unavailable`; log error                                     |
 | Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set) | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details |
+| Magic Link token expired or invalid          | Display error page prompting subscriber to request a new link                    |
+| Magic Link token already used                | Display error page prompting subscriber to request a new link                    |
+| Email confirmation token expired             | Do not update email; display error page prompting subscriber to restart process  |
+| New email already registered by another subscriber | `409 Conflict` — `{ "error": "Email already registered" }`                 |
+| Nickname exceeds length limit                | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`           |
+| Magic Link request rate exceeded             | `429 Too Many Requests`                                                          |
 
 ---
 
@@ -293,6 +389,10 @@ The system retains personally identifiable information only for as long as neces
 | Newsletter content | No | Archive sent newsletters | Indefinite (admin content) |
 | Delivery statistics | No | Aggregate analytics | Indefinite (no PII) |
 | Bounce events | Yes | Admin reviews delivery failures | Ephemeral; auto-purged after 7 days |
+| Subscriber nickname | Possibly | Newsletter personalization, admin display | While active; deleted with subscriber record |
+| Magic link token | No | Authenticate profile access | Short-lived (15 min); single-use; auto-expire |
+| Email confirmation token | No | Verify new email ownership | Short-lived (24 hours); auto-expire |
+| Pending email change | Yes | Store new email until confirmed | Until confirmed or expired |
 | RSS feed state | No | Track last processed timestamp | Indefinite (operational) |
 
 Admin-related data (JWT claims, identity) is not covered by this privacy policy — the admin is the platform owner.
@@ -385,3 +485,5 @@ To be decided:
 | PII               | Personally Identifiable Information — data that can identify a specific person (e.g., email address) |
 | Hard delete       | Permanent removal of a record from the database; not recoverable                            |
 | Bounce event      | A delivery failure notification indicating an email could not be delivered to a specific subscriber |
+| Magic Link        | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification |
+| Email confirmation token | A temporary token used to verify ownership of a new email address during an email change request |
