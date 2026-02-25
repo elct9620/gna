@@ -45,27 +45,29 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 
 ### Key Directories
 
-- `src/client/` — Client-side React code (hydration, styles, page components)
+- `src/client/` — Client-side React code: hydration entry (`index.tsx`), page components (`admin.tsx`, `app.tsx`, `unsubscribe.tsx`), styles
 - `src/components/` — Shared React components (internal, camelCase naming)
 - `src/components/ui/` — shadcn/ui components (added via `pnpm dlx shadcn@latest add`)
-- `src/db/` — Drizzle ORM schema definitions (`schema.ts`)
+- `src/db/` — Drizzle ORM schema definitions (`schema.ts`) — currently a placeholder; no tables defined yet
+- `src/hooks/` — React hooks (e.g., `use-mobile.ts` from shadcn/ui)
 - `src/lib/` — Shared utilities (e.g., `cn()` class merge helper)
 - `src/middleware/` — Hono middleware (e.g., `adminAuth.ts` for JWT verification)
-- `src/services/` — Business logic services (e.g., `adminAuthService.ts`)
-- `tests/` — Vitest integration tests using Cloudflare Workers pool
+- `src/services/` — Business logic services (e.g., `adminAuthService.ts`, `subscriptionService.ts`)
+- `tests/` — Vitest integration tests using Cloudflare Workers pool (mirrors `src/` structure)
 
 ### Dependency Injection
 
 tsyringe container is configured in `src/container.ts` and imported at the top of `src/index.tsx`. Services are resolved via `container.resolve(ServiceClass)`.
 
-**esbuild limitation:** Vite uses esbuild which does not support `emitDecoratorMetadata`, so tsyringe's `@inject()` decorator cannot resolve constructor parameters. Two registration patterns coexist:
+**esbuild limitation:** Vite uses esbuild which does not support `emitDecoratorMetadata`, so tsyringe's `@inject()` decorator cannot resolve constructor parameters. Three registration patterns coexist:
 
 | Pattern | Registration | When to use | Examples |
 |---------|-------------|-------------|----------|
-| Decorator | `@injectable()` + `registerSingleton()` | Pure business logic, no env/context dependencies | `EmailRenderer`, `SubscriptionService` |
+| Decorator + register | `@injectable()` + `registerSingleton()` | Pure business logic with constructor deps | `EmailRenderer`, `SubscriptionService` |
+| Decorator only | `@injectable()` (no explicit registration) | No constructor deps; resolved ad-hoc via `container.resolve()` | `AdminAuthService` |
 | Factory | `register()` + `instanceCachingFactory()` | Needs env values, external SDK instances, or caching | `DATABASE`, `AWS_CLIENT`, `EmailSender` |
 
-Most services will be **decorator-based**. Use factory registration when the service depends on `env`, wraps a third-party client, or needs singleton caching. Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`).
+Most services will be **decorator-based**. Use factory registration when the service depends on `env`, wraps a third-party client, or needs singleton caching. Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`). Scalar env values injected into services also use Symbol tokens registered via factory.
 
 ### Environment Variables
 
@@ -88,7 +90,7 @@ Add new routes to `src/routes.tsx`. Both server SSR and client hydration share t
 - **Styling:** TailwindCSS v4, class-variance-authority, tailwind-merge
 - **UI Components:** shadcn/ui (new-york style, Radix UI primitives, Lucide icons). Config in `components.json`.
 - **Testing:** Vitest with `@cloudflare/vitest-pool-workers` (tests run in Worker environment)
-- **Storage:** Cloudflare D1 (SQLite) via Drizzle ORM. Schema in `src/db/schema.ts`, config in `drizzle.config.ts`.
+- **Storage:** Cloudflare D1 (SQLite) via Drizzle ORM. Schema in `src/db/schema.ts`, config in `drizzle.config.ts`. Note: D1 schema is currently a placeholder; `SubscriptionService` uses in-memory storage pending migration.
 - **DI:** tsyringe with `reflect-metadata`. Decorator-based for most services; factory-based for env/context dependencies (esbuild limitation). Container setup in `src/container.ts`.
 - **Auth:** Cloudflare Zero Trust JWT verification via `jose`. Service in `src/services/adminAuthService.ts`.
 - **Path alias:** `@` → `./src` (configured in tsconfig.json, vite.config.ts, and vitest.config.ts)
