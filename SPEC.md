@@ -26,7 +26,7 @@ In most deployments, there is a single Content Creator who is also the Administr
 
 ## Success Criteria
 
-- A visitor can subscribe and unsubscribe without errors via the embedded API.
+- A visitor can subscribe via the embedded API, receive a confirmation email, and activate the subscription by clicking the confirmation link (double opt-in).
 - New RSS feed entries automatically trigger newsletter generation within the configured schedule.
 - Newsletters are delivered to all active subscribers with correct content.
 - The admin dashboard is accessible only through Cloudflare Zero Trust authentication.
@@ -69,9 +69,9 @@ Subscribers can manage their own profile (nickname and email address) through a 
 
 **Context:** A visitor is reading a blog post and sees a subscription form embedded on the page.
 
-**Action:** The visitor enters their email address and submits the form.
+**Action:** The visitor enters their email address and submits the form. The system sends a confirmation email to the provided address. The visitor clicks the confirmation link in the email.
 
-**Outcome:** The system records the subscription. The visitor sees a confirmation message.
+**Outcome:** The subscription is activated. The visitor is now an active subscriber and will receive future newsletters.
 
 ### Subscriber Unsubscribes
 
@@ -143,8 +143,10 @@ Subscribers can manage their own profile (nickname and email address) through a 
 | Request body       | `{ "email": "<address>", "nickname": "<name>" }` (`nickname` is optional) |
 | CORS               | Allow origins configured per deployment                      |
 | Validation         | Reject syntactically invalid email addresses (RFC 5321 addr-spec); if `nickname` provided, must be 1–50 characters |
-| Duplicate email    | Return success without creating a second record (idempotent) |
-| Success response   | `201 Created` — `{ "status": "subscribed" }`                 |
+| New subscription   | Create subscriber record with `activated_at = NULL`; generate confirmation token; send confirmation email |
+| Duplicate (active) | Email already activated (`activated_at IS NOT NULL`) — return success without action (idempotent; does not reveal subscription status) |
+| Duplicate (pending)| Email exists but not activated (`activated_at IS NULL`) — regenerate confirmation token and resend confirmation email; return success |
+| Success response   | `201 Created` — `{ "status": "confirmation_sent" }`          |
 | Validation failure | `400 Bad Request` — `{ "error": "<reason>" }`                |
 
 #### Unsubscribe
@@ -169,28 +171,31 @@ Subscribers can manage their own profile (nickname and email address) through a 
 #### Subscriber States
 
 ```
-active ──(unsubscribe)──▶ [deleted]
+[created] ──(confirm)──▶ active ──(unsubscribe)──▶ [deleted]
+[created] ──(token expired + cleanup)──▶ [deleted]
 active ──(admin remove)──▶ [deleted]
 ```
 
-| State       | Description                                |
-| ----------- | ------------------------------------------ |
-| `active`    | Receiving newsletters                      |
-| `[deleted]` | Record removed from the database           |
+| State       | Description                                                              |
+| ----------- | ------------------------------------------------------------------------ |
+| `[created]` | Record exists but `activated_at` is `NULL`; awaiting email confirmation  |
+| `active`    | `activated_at IS NOT NULL`; receiving newsletters                        |
+| `[deleted]` | Record removed from the database                                         |
 
 #### Subscriber Fields
 
-| Field             | Required | Description                                       |
-| ----------------- | -------- | ------------------------------------------------- |
-| `email`           | Yes      | Subscriber's email address                        |
-| `nickname`        | No       | Display name for personalization and admin display |
-| `unsubscribe_token` | Yes   | Unique token for authenticating unsubscribe       |
+| Field                | Required | Description                                                            |
+| -------------------- | -------- | ---------------------------------------------------------------------- |
+| `email`              | Yes      | Subscriber's email address                                             |
+| `nickname`           | No       | Display name for personalization and admin display                     |
+| `unsubscribe_token`  | Yes      | Unique token for authenticating unsubscribe                            |
+| `activated_at`       | No       | Timestamp of subscription confirmation; `NULL` means not yet activated |
 
 #### Admin Operations
 
 | Operation        | Behavior                                                                    |
 | ---------------- | --------------------------------------------------------------------------- |
-| List subscribers | Paginated list; default shows all active subscribers; displays email and nickname |
+| List subscribers | Paginated list; shows all subscribers (active and pending); displays email, nickname, and activation status |
 | Search           | Filter by email or nickname (partial match)                                 |
 | Remove           | Hard delete from database                                                   |
 | Export           | Download subscriber list as CSV                                             |
@@ -221,7 +226,7 @@ active ──(admin remove)──▶ [deleted]
 
 | Field            | Rule                                                                        |
 | ---------------- | --------------------------------------------------------------------------- |
-| Recipients       | All subscribers in `active` state                                           |
+| Recipients       | All subscribers with `activated_at IS NOT NULL`                             |
 | Email headers    | Include `List-Unsubscribe` header with one-click unsubscribe URL (RFC 8058) |
 | Email footer     | Include unsubscribe link and profile management link                        |
 | Failure handling | Log failed deliveries; do not change subscriber state on transient failures |
@@ -306,7 +311,7 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Token lifetime          | 15 minutes from creation                                                                 |
 | Token usage             | Single-use; `GET /profile` validates but does not consume; consumed on `POST /api/profile/update` submission; also expires after 15 minutes |
 | Repeat request          | Invalidate any existing unexpired token; issue a new token                               |
-| Email not found         | Return success without sending email (prevent email enumeration)                         |
+| Email not found or not activated | Return success without sending email (prevent email enumeration; pending subscribers cannot access profile) |
 | Success response        | `200 OK` — `{ "status": "link_sent" }`                                                   |
 | Validation failure      | `400 Bad Request` — `{ "error": "<reason>" }`                                            |
 | Rate limiting           | 3 requests per email per hour; exceeded returns `429 Too Many Requests`                  |
@@ -328,7 +333,7 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Token consumed          | Token is invalidated immediately after successful processing                                      |
 | Nickname validation     | Must be 1–50 characters; no leading or trailing whitespace                                        |
 | Email unchanged         | If `email` matches current address or is omitted, no email confirmation is triggered              |
-| Email already in use    | `409 Conflict` — `{ "error": "Email already registered" }`; no fields are updated; token is NOT consumed |
+| Email already in use    | `409 Conflict` — `{ "error": "Email already registered" }`; checks all subscriber records (active and pending); no fields are updated; token is NOT consumed |
 | Email changed           | Generate email confirmation token and send confirmation email to the new address; nickname update (if provided) still applies immediately |
 | Confirmation token lifetime | 24 hours from creation                                                                        |
 | Repeat submission       | Since token is consumed on first submission, repeat attempts return `401 Unauthorized`            |
@@ -336,14 +341,15 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Invalid or expired token| `401 Unauthorized` — `{ "error": "Invalid or expired token" }`                                   |
 | Validation failure      | `400 Bad Request` — `{ "error": "<reason>" }`; token is NOT consumed                             |
 
-#### Confirm Email Change
+#### Confirm Email
 
-| Field                   | Rule                                                                          |
-| ----------------------- | ----------------------------------------------------------------------------- |
-| Endpoint                | `GET /api/profile/confirm-email?token=<confirm-token>`                        |
-| Valid token             | Update subscriber email; display confirmation page                            |
-| Expired token           | Display error page; subscriber must restart the email change process          |
-| Email now taken         | Display error page; email was registered by another subscriber since request  |
+| Field                          | Rule                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| Endpoint                       | `GET /api/profile/confirm-email?token=<confirm-token>`                        |
+| Subscription confirmation token| Set `activated_at` to current timestamp; display welcome page                 |
+| Email change confirmation token| Update subscriber email; display confirmation page                            |
+| Expired token                  | Display error page; subscriber must restart the process (resubscribe or redo email change) |
+| Email now taken                | Display error page; email was registered by another subscriber (active or pending) since request |
 
 ---
 
@@ -356,6 +362,8 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Email service unavailable                    | Queue for retry; log error                                               |
 | Email delivery permanently bounces           | Store bounce event (retained 7 days); keep subscriber `active`; admin may remove subscriber manually |
 | Database unavailable                         | API returns `503 Service Unavailable`; Cron logs error, retries next run |
+| Subscription confirmation token expired or invalid | Display error page prompting visitor to resubscribe                 |
+| Subscription confirmation for already-active email | Return success (idempotent)                                        |
 | Concurrent subscribe requests for same email | Idempotent; one record created; both requests return success             |
 | Schedule send time in the past               | Reject with `400 Bad Request`                                            |
 | Newsletter send partially completes          | Log aggregate failure count; resume strategy — _to be decided (depends on email service provider selection)_ |
@@ -366,8 +374,8 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 | Auth configuration missing (`CF_ACCESS_TEAM_NAME` or `CF_ACCESS_AUD` not set) | `/admin/*` routes return `500 Internal Server Error` — `{ "error": "Server misconfiguration" }`; log error with details |
 | Magic Link token expired or invalid          | Display error page prompting subscriber to request a new link                    |
 | Magic Link token already used                | Display error page prompting subscriber to request a new link                    |
-| Email confirmation token expired             | Do not update email; display error page prompting subscriber to restart process  |
-| New email already registered by another subscriber | `409 Conflict` — `{ "error": "Email already registered" }`                 |
+| Email confirmation token expired             | Do not update email or activate subscription; display error page prompting subscriber to restart process |
+| New email already registered by another subscriber (active or pending) | Display error page; email was claimed since the change was requested |
 | Nickname exceeds length limit                | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`           |
 | Magic Link request rate exceeded             | `429 Too Many Requests`                                                          |
 
@@ -391,23 +399,28 @@ The system retains personally identifiable information only for as long as neces
 | Bounce events | Yes | Admin reviews delivery failures | Ephemeral; auto-purged after 7 days |
 | Subscriber nickname | Possibly | Newsletter personalization, admin display | While active; deleted with subscriber record |
 | Magic link token | No | Authenticate profile access | Short-lived (15 min); single-use; auto-expire |
-| Email confirmation token | No | Verify new email ownership | Short-lived (24 hours); auto-expire |
+| Subscription confirmation token | No | Verify email ownership for double opt-in | Short-lived (24 hours); auto-expire |
+| Email change confirmation token | No | Verify new email ownership | Short-lived (24 hours); auto-expire |
 | Pending email change | Yes | Store new email until confirmed | Until confirmed or expired |
+| Unactivated subscriber record | Yes | Pending subscription confirmation | Deleted after confirmation token expires |
 | RSS feed state | No | Track last processed timestamp | Indefinite (operational) |
 
 Admin-related data (JWT claims, identity) is not covered by this privacy policy — the admin is the platform owner.
 
 ### Subscriber Data Lifecycle
 
-Unsubscribe triggers immediate hard deletion; there is no soft-delete or grace period.
+Unsubscribe and cleanup trigger immediate hard deletion; there is no soft-delete or grace period.
 
 ```
-active ──(unsubscribe)──▶ [deleted]
+[created] ──(confirm)──▶ active ──(unsubscribe)──▶ [deleted]
+[created] ──(token expired + cleanup)──▶ [deleted]
 active ──(admin remove)──▶ [deleted]
 ```
 
 | Event | Rule |
 | ----- | ---- |
+| Subscription confirmed | Set `activated_at` to current timestamp; subscriber becomes active |
+| Confirmation token expired | Hard delete unactivated subscriber record during cleanup |
 | Unsubscribe | Validate token, then hard delete subscriber record immediately |
 | Admin removal | Hard delete immediately |
 | Resubscribe after deletion | Creates a new record (previous record is unrecoverable) |
@@ -478,7 +491,10 @@ To be decided:
 | Newsletter        | An email sent to all active subscribers, either generated from RSS or manually composed |
 | Feed entry        | A single item in an RSS feed representing a published piece of content                  |
 | Unsubscribe token | A unique, per-subscriber token for authenticating unsubscribe requests without login    |
-| Active subscriber | A subscriber in the `active` state who is eligible to receive newsletters               |
+| Active subscriber | A subscriber with `activated_at IS NOT NULL` who is eligible to receive newsletters     |
+| `activated_at`    | Nullable timestamp on a subscriber record; `NULL` = pending confirmation, non-`NULL` = active and records when the subscription was confirmed |
+| Double opt-in     | Subscription flow requiring the subscriber to confirm their email address before activation; prevents unauthorized sign-ups |
+| Confirmation token | A temporary token (24-hour lifetime) used to verify email ownership; covers both subscription confirmation (double opt-in) and email change confirmation |
 | JWKS              | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification |
 | Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim |
 | Team domain       | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL              |
@@ -486,4 +502,3 @@ To be decided:
 | Hard delete       | Permanent removal of a record from the database; not recoverable                            |
 | Bounce event      | A delivery failure notification indicating an email could not be delivered to a specific subscriber |
 | Magic Link        | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification |
-| Email confirmation token | A temporary token used to verify ownership of a new email address during an email change request |
