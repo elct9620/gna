@@ -197,7 +197,7 @@ activated ──(admin remove)──▶ deleted
 
 #### Admin Operations
 
-| Operation        | Behavior                                                                                                                                 |
+| Operation        | Rule                                                                                                                                     |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | List subscribers | Paginated list; shows all subscribers (`activated` and `pending`); displays email, nickname, and status label (`Activated` or `Pending`) |
 | Search           | Filter by email or nickname (partial match)                                                                                              |
@@ -307,6 +307,30 @@ Multi-channel delivery for RSS-triggered campaigns — _to be decided_ (see §7 
 
 Per-channel content editing — _to be decided_ alongside Channel Management (see §7).
 
+#### Campaign States
+
+```
+draft ──(schedule)──▶ scheduled ──(send time reached)──▶ publishing ──(all deliveries terminal)──▶ published
+  ▲                       │
+  └───(cancel schedule)───┘
+```
+
+| State        | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| `draft`      | Being composed; not yet sent or scheduled                                |
+| `scheduled`  | Queued for future delivery at a specific time                            |
+| `publishing` | At least one Delivery is `sending`; campaign is actively being delivered |
+| `published`  | All Deliveries have reached a terminal state (`sent` or `failed`)        |
+
+#### Campaign Fields
+
+| Field          | Required | Description                                                              |
+| -------------- | -------- | ------------------------------------------------------------------------ |
+| `subject`      | Yes      | Campaign subject line                                                    |
+| `body`         | Yes      | Campaign body content (HTML with plain-text fallback)                    |
+| `state`        | Yes      | Current campaign state (`draft`, `scheduled`, `publishing`, `published`) |
+| `scheduled_at` | No       | Future send time; required when state is `scheduled`                     |
+
 #### Campaign Admin Operations
 
 | Operation       | Rule                                                                             |
@@ -326,30 +350,6 @@ Per-channel content editing — _to be decided_ alongside Channel Management (se
 | Method       | Offset-based (`?page=1&per_page=20`)                       |
 | Sort default | Created date, newest first                                 |
 | Filter       | By state (`draft`, `scheduled`, `publishing`, `published`) |
-
-#### Campaign Fields
-
-| Field          | Required | Description                                                              |
-| -------------- | -------- | ------------------------------------------------------------------------ |
-| `subject`      | Yes      | Campaign subject line                                                    |
-| `body`         | Yes      | Campaign body content (HTML with plain-text fallback)                    |
-| `state`        | Yes      | Current campaign state (`draft`, `scheduled`, `publishing`, `published`) |
-| `scheduled_at` | No       | Future send time; required when state is `scheduled`                     |
-
-#### Campaign States
-
-```
-draft ──(schedule)──▶ scheduled ──(send time reached)──▶ publishing ──(all deliveries terminal)──▶ published
-  ▲                       │
-  └───(cancel schedule)───┘
-```
-
-| State        | Description                                                              |
-| ------------ | ------------------------------------------------------------------------ |
-| `draft`      | Being composed; not yet sent or scheduled                                |
-| `scheduled`  | Queued for future delivery at a specific time                            |
-| `publishing` | At least one Delivery is `sending`; campaign is actively being delivered |
-| `published`  | All Deliveries have reached a terminal state (`sent` or `failed`)        |
 
 #### Delivery States
 
@@ -599,22 +599,23 @@ To be decided:
 
 ## Terminology
 
-| Term                       | Definition                                                                                                                                               |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Campaign                   | A content delivery action, either generated from RSS or manually composed, delivered via email                                                           |
-| Delivery                   | A record within a campaign tracking the content, state, and statistics for a delivery channel (currently email only)                                     |
-| Channel                    | A delivery target for campaigns; currently only email is supported (see §7 for future extensibility)                                                     |
-| Subscriber                 | A person identified by email address who has opted in to receive campaign emails                                                                         |
-| Feed entry                 | A single item in an RSS feed representing a published piece of content                                                                                   |
-| Unsubscribe token          | A unique, per-subscriber token for authenticating unsubscribe requests without login                                                                     |
-| Active subscriber          | A subscriber in the `activated` state (`activated_at IS NOT NULL`) who is eligible to receive campaign emails                                            |
-| `activated_at`             | Nullable timestamp on a subscriber record; `NULL` = `pending`, non-`NULL` = `activated`; records when the subscription was confirmed                     |
-| Double opt-in              | Subscription flow requiring the subscriber to confirm their email address before activation; prevents unauthorized sign-ups                              |
-| Confirmation token         | A temporary token (24-hour lifetime) used to verify email ownership; covers both subscription confirmation (double opt-in) and email change confirmation |
-| JWKS                       | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification                                                             |
-| Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim                                                                    |
-| Team domain                | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL                                                                           |
-| PII                        | Personally Identifiable Information — data that can identify a specific person (e.g., email address)                                                     |
-| Hard delete                | Permanent removal of a record from the database; not recoverable                                                                                         |
-| Bounce event               | A delivery failure notification indicating an email could not be delivered to a specific subscriber                                                      |
-| Magic Link                 | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification                                                |
+| Term                       | Definition                                                                                                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Campaign                   | A content delivery action, either generated from RSS or manually composed, delivered via email                                                                                                  |
+| Delivery                   | A record within a campaign tracking the content, state, and statistics for a delivery channel (currently email only)                                                                            |
+| Channel                    | A delivery target for campaigns; currently only email is supported (see §7 for future extensibility)                                                                                            |
+| Subscriber                 | A person identified by email address who has opted in to receive campaign emails                                                                                                                |
+| Feed entry                 | A single item in an RSS feed representing a published piece of content                                                                                                                          |
+| Unsubscribe token          | A unique, per-subscriber token for authenticating unsubscribe requests without login                                                                                                            |
+| Active subscriber          | A subscriber in the `activated` state (`activated_at IS NOT NULL`) who is eligible to receive campaign emails                                                                                   |
+| `activated_at`             | Nullable timestamp on a subscriber record; `NULL` = `pending`, non-`NULL` = `activated`; records when the subscription was confirmed                                                            |
+| Double opt-in              | Subscription flow requiring the subscriber to confirm their email address before activation; prevents unauthorized sign-ups                                                                     |
+| Confirmation token         | A temporary token (24-hour lifetime) used to verify email ownership; covers both subscription confirmation (double opt-in) and email change confirmation                                        |
+| JWKS                       | JSON Web Key Set — public keys published by Cloudflare Access for JWT signature verification                                                                                                    |
+| Application Audience (AUD) | Unique identifier for a Cloudflare Access application; used to verify JWT `aud` claim                                                                                                           |
+| Team domain                | Cloudflare Access organization identifier; forms part of the JWKS endpoint URL                                                                                                                  |
+| PII                        | Personally Identifiable Information — data that can identify a specific person (e.g., email address)                                                                                            |
+| Hard delete                | Permanent removal of a record from the database; not recoverable                                                                                                                                |
+| Bounce event               | A delivery failure notification indicating an email could not be delivered to a specific subscriber                                                                                             |
+| Transient failure          | A temporary delivery error (e.g., network timeout, rate limit, service temporarily unavailable) that may succeed on retry; contrast with permanent failure (e.g., invalid address, hard bounce) |
+| Magic Link                 | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification                                                                                       |
