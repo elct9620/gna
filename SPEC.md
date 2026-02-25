@@ -69,9 +69,9 @@ Subscribers can manage their own profile (nickname and email address) through a 
 
 **Context:** A visitor is reading a blog post and sees a subscription form embedded on the page.
 
-**Action:** The visitor enters their email address and submits the form. The system sends a confirmation email to the provided address. The visitor clicks the confirmation link in the email.
+**Action:** The visitor enters their email address and submits the form.
 
-**Outcome:** The subscription is activated. The visitor is now an active subscriber and will receive future newsletters.
+**Outcome:** The form displays a message instructing the visitor to check their inbox for a confirmation email. The system sends a confirmation email to the provided address. When the visitor clicks the confirmation link in the email, the subscription is activated. The visitor is now an active subscriber and will receive future newsletters.
 
 ### Subscriber Unsubscribes
 
@@ -193,12 +193,12 @@ active ──(admin remove)──▶ [deleted]
 
 #### Admin Operations
 
-| Operation        | Behavior                                                                                                    |
-| ---------------- | ----------------------------------------------------------------------------------------------------------- |
-| List subscribers | Paginated list; shows all subscribers (active and pending); displays email, nickname, and activation status |
-| Search           | Filter by email or nickname (partial match)                                                                 |
-| Remove           | Hard delete from database                                                                                   |
-| Export           | Download subscriber list as CSV                                                                             |
+| Operation        | Behavior                                                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| List subscribers | Paginated list; shows all subscribers (active and pending); displays email, nickname, and status label (`Activated` or `Pending`) |
+| Search           | Filter by email or nickname (partial match)                                                                                       |
+| Remove           | Hard delete from database                                                                                                         |
+| Export           | Download subscriber list as CSV                                                                                                   |
 
 ### 3. RSS Feed Newsletter Generation
 
