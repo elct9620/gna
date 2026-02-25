@@ -33,6 +33,13 @@ In most deployments, there is a single Content Creator who is also the Administr
 - The admin can manually compose, schedule, and send campaigns.
 - A subscriber can authenticate via Magic Link and update their nickname and email address.
 
+## Non-goals
+
+- Multi-tenant operation — Gna serves a single content creator per deployment
+- A/B testing or variant delivery
+- Built-in analytics dashboard (delivery statistics are stored but visualization is not in scope)
+- Subscriber segmentation or tagging
+
 ---
 
 ## Features
@@ -64,6 +71,10 @@ Subscribers can manage their own profile (nickname and email address) through a 
 ### 7. Channel Management
 
 Email is the only delivery channel; it is always active and requires no configuration. Channel management (adding and configuring additional delivery channels) — _to be decided_.
+
+### 8. Test Email Sending
+
+Admin can send test emails to verify email templates and campaign content before publishing. Test emails carry a `[TEST]` subject prefix and are not recorded in delivery statistics.
 
 ---
 
@@ -132,6 +143,22 @@ Email is the only delivery channel; it is always active and requires no configur
 **Action:** The subscriber enters a new email address. The system sends a confirmation email to the new address. The subscriber clicks the confirmation link.
 
 **Outcome:** The subscriber's email is updated to the new address. Subsequent campaign emails are delivered to the new email.
+
+### Admin Tests System Template
+
+**Context:** The admin wants to verify that a system email template (confirmation, magic link, or email change) renders correctly before any subscriber encounters it.
+
+**Action:** The admin selects a template type and enters a recipient email address to send the test to.
+
+**Outcome:** The system sends the selected template email with a `[TEST]` subject prefix and placeholder data to the specified address. No subscriber records or delivery statistics are affected.
+
+### Admin Tests Campaign Email
+
+**Context:** The admin has composed or scheduled a campaign and wants to preview the final email before it reaches subscribers.
+
+**Action:** The admin enters a recipient email address on the campaign detail page and sends a test.
+
+**Outcome:** The system sends the campaign content with a `[TEST]` subject prefix and placeholder personalization data to the specified address. The campaign state and delivery statistics are not affected.
 
 ---
 
@@ -466,6 +493,57 @@ Campaign state is **derived** from its Delivery states:
 
 Email is the only delivery channel; it is always active and requires no configuration. Channel management (adding and configuring additional delivery channels) — _to be decided_.
 
+### 8. Test Email Sending
+
+#### Test System Template
+
+| Field            | Rule                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
+| Endpoint         | `POST /admin/api/test-email/template`                                  |
+| Request body     | `{ "template": "<name>", "to": "<email>" }`                            |
+| Template values  | `confirmation`, `magic_link`, `email_change`                           |
+| Subject prefix   | `[TEST]`                                                               |
+| Placeholder data | Each template uses fixed demonstration data (implementation-defined)   |
+| Success response | `200 OK` — `{ "status": "sent" }`                                      |
+| Invalid template | `400 Bad Request` — `{ "error": "Invalid template name" }`             |
+| Invalid email    | `400 Bad Request` — `{ "error": "Invalid email address" }`             |
+| Service down     | `503 Service Unavailable` — `{ "error": "Email service unavailable" }` |
+
+#### Test Campaign Email
+
+| Field            | Rule                                                                         |
+| ---------------- | ---------------------------------------------------------------------------- |
+| Endpoint         | `POST /admin/api/test-email/campaign/:id`                                    |
+| Request body     | `{ "to": "<email>" }`                                                        |
+| Allowed states   | `draft`, `scheduled`                                                         |
+| Subject prefix   | `[TEST]`                                                                     |
+| Content          | Rendered using the campaign's subject and body                               |
+| Personalization  | Uses fixed placeholder data (not real subscriber data)                       |
+| Success response | `200 OK` — `{ "status": "sent" }`                                            |
+| Invalid email    | `400 Bad Request` — `{ "error": "Invalid email address" }`                   |
+| Not found        | `404 Not Found` — `{ "error": "Campaign not found" }`                        |
+| Invalid state    | `409 Conflict` — `{ "error": "Campaign cannot be tested in current state" }` |
+| Service down     | `503 Service Unavailable` — `{ "error": "Email service unavailable" }`       |
+
+#### Common Rules
+
+| Rule             | Detail                                                                  |
+| ---------------- | ----------------------------------------------------------------------- |
+| Subject prefix   | All test emails prepend `[TEST]` to the subject line                    |
+| Subscriber data  | No subscriber records are read or modified                              |
+| Campaign state   | Not affected by test email sends                                        |
+| Delivery records | Test emails are not recorded in delivery records or stats               |
+| Authentication   | Protected by admin auth middleware (see §4)                             |
+| Email validation | Recipient address validated per §1 Subscribe rules (RFC 5321 addr-spec) |
+
+### Open Questions
+
+| Question                                      | Referenced in                                  | Impact         |
+| --------------------------------------------- | ---------------------------------------------- | -------------- |
+| Additional delivery channels beyond email     | §7, Success Criteria, §3 Delivery, §5 Channels | Feature scope  |
+| Admin notification mechanism for RSS failures | Error Scenarios                                | Observability  |
+| Email service provider selection              | Technical Decisions — Email Delivery           | Infrastructure |
+
 ---
 
 ## Error Scenarios
@@ -494,6 +572,11 @@ Email is the only delivery channel; it is always active and requires no configur
 | New email already registered by another subscriber (`activated` or `pending`)       | Display error page; email was claimed since the change was requested                                                    |
 | Nickname exceeds length limit                                                       | `400 Bad Request` — `{ "error": "Nickname must be 1–50 characters" }`                                                   |
 | Magic Link request rate exceeded                                                    | `429 Too Many Requests`                                                                                                 |
+| Test email with invalid template name                                               | `400 Bad Request` — `{ "error": "Invalid template name" }`                                                              |
+| Test email for non-existent campaign                                                | `404 Not Found` — `{ "error": "Campaign not found" }`                                                                   |
+| Test email for campaign in `publishing` or `published` state                        | `409 Conflict` — `{ "error": "Campaign cannot be tested in current state" }`                                            |
+| Test email with invalid recipient address                                           | `400 Bad Request` — `{ "error": "Invalid email address" }`                                                              |
+| Test email when email service unavailable                                           | `503 Service Unavailable` — `{ "error": "Email service unavailable" }`                                                  |
 
 ---
 
@@ -624,3 +707,4 @@ To be decided:
 | Bounce event               | A delivery failure notification indicating an email could not be delivered to a specific subscriber                                                                                             |
 | Transient failure          | A temporary delivery error (e.g., network timeout, rate limit, service temporarily unavailable) that may succeed on retry; contrast with permanent failure (e.g., invalid address, hard bounce) |
 | Magic Link                 | A single-use, time-limited authentication URL sent via email, used for passwordless identity verification                                                                                       |
+| Test email                 | A diagnostic email sent by the admin to verify template rendering or campaign content; subject carries a `[TEST]` prefix and the send is not recorded in delivery statistics                    |
