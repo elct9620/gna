@@ -57,7 +57,7 @@ app.get("/api/unsubscribe", async (c) => {
   return c.redirect("/unsubscribe?status=success", 302);
 });
 
-app.get("/api/profile/confirm-email", async (c) => {
+app.get("/confirm", async (c) => {
   const token = c.req.query("token");
   if (!token) {
     return c.json({ error: "Missing token" }, 400);
@@ -67,7 +67,7 @@ app.get("/api/profile/confirm-email", async (c) => {
 
   const subscriptionResult = service.confirmSubscription(token);
   if (subscriptionResult) {
-    return c.redirect("/?confirmed=true", 302);
+    return c.redirect("/confirmed", 302);
   }
 
   const emailChangeResult = service.confirmEmailChange(token);

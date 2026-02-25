@@ -345,9 +345,9 @@ draft ──(schedule)──▶ scheduled ──(send time reached)──▶ sen
 
 | Field                           | Rule                                                                                             |
 | ------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Endpoint                        | `GET /api/profile/confirm-email?token=<confirm-token>`                                           |
-| Subscription confirmation token | Set `activated_at` to current timestamp; display welcome page                                    |
-| Email change confirmation token | Update subscriber email; display confirmation page                                               |
+| Endpoint                        | `GET /confirm?token=<confirm-token>`                                                             |
+| Subscription confirmation token | Set `activated_at` to current timestamp; redirect to `/confirmed` welcome page                   |
+| Email change confirmation token | Update subscriber email; redirect to `/profile?email_changed=true`                               |
 | Expired token                   | Display error page; subscriber must restart the process (resubscribe or redo email change)       |
 | Email now taken                 | Display error page; email was registered by another subscriber (active or pending) since request |
 

@@ -14,7 +14,7 @@ export class NotificationService {
     email: string,
     confirmationToken: string,
   ): Promise<void> {
-    const actionUrl = `${this.baseUrl}/api/profile/confirm-email?token=${confirmationToken}`;
+    const actionUrl = `${this.baseUrl}/confirm?token=${confirmationToken}`;
     const element = createElement(BaseEmail, {
       previewText: "Please confirm your newsletter subscription",
       heading: "Confirm Your Subscription",
@@ -68,7 +68,7 @@ export class NotificationService {
     email: string,
     emailConfirmationToken: string,
   ): Promise<void> {
-    const actionUrl = `${this.baseUrl}/api/profile/confirm-email?token=${emailConfirmationToken}`;
+    const actionUrl = `${this.baseUrl}/confirm?token=${emailConfirmationToken}`;
     const element = createElement(BaseEmail, {
       previewText: "Confirm your email address change",
       heading: "Confirm Email Change",

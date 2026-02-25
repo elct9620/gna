@@ -6,7 +6,7 @@ import { SubscriptionService } from "@/services/subscriptionService";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mockEmailSender";
 
-describe("GET /api/profile/confirm-email", () => {
+describe("GET /confirm", () => {
   let mockEmailSender: MockEmailSender;
 
   beforeEach(() => {
@@ -17,7 +17,7 @@ describe("GET /api/profile/confirm-email", () => {
   });
 
   it("should return 400 when token is missing", async () => {
-    const res = await app.request("/api/profile/confirm-email", {}, env);
+    const res = await app.request("/confirm", {}, env);
     expect(res.status).toBe(400);
     const body = await res.json<{ error: string }>();
     expect(body.error).toBe("Missing token");
@@ -28,13 +28,13 @@ describe("GET /api/profile/confirm-email", () => {
     const { subscriber } = service.subscribe("confirm@example.com");
 
     const res = await app.request(
-      `/api/profile/confirm-email?token=${subscriber.confirmationToken}`,
+      `/confirm?token=${subscriber.confirmationToken}`,
       { redirect: "manual" },
       env,
     );
 
     expect(res.status).toBe(302);
-    expect(res.headers.get("Location")).toContain("/?confirmed=true");
+    expect(res.headers.get("Location")).toContain("/confirmed");
   });
 
   it("should activate subscriber after confirmation", async () => {
@@ -42,7 +42,7 @@ describe("GET /api/profile/confirm-email", () => {
     const { subscriber } = service.subscribe("activate@example.com");
 
     await app.request(
-      `/api/profile/confirm-email?token=${subscriber.confirmationToken}`,
+      `/confirm?token=${subscriber.confirmationToken}`,
       { redirect: "manual" },
       env,
     );
@@ -63,7 +63,7 @@ describe("GET /api/profile/confirm-email", () => {
     );
 
     const res = await app.request(
-      `/api/profile/confirm-email?token=${token}`,
+      `/confirm?token=${token}`,
       { redirect: "manual" },
       env,
     );
@@ -75,13 +75,19 @@ describe("GET /api/profile/confirm-email", () => {
   });
 
   it("should return 400 for invalid token", async () => {
-    const res = await app.request(
-      "/api/profile/confirm-email?token=invalid-token",
-      {},
-      env,
-    );
+    const res = await app.request("/confirm?token=invalid-token", {}, env);
     expect(res.status).toBe(400);
     const body = await res.json<{ error: string }>();
     expect(body.error).toBe("Invalid or expired token");
+  });
+});
+
+describe("GET /confirmed", () => {
+  it("should render the confirmed page", async () => {
+    const res = await app.request("/confirmed", {}, env);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("Welcome!");
+    expect(html).toContain("Subscription Confirmed");
   });
 });

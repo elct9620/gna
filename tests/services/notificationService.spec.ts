@@ -26,8 +26,8 @@ describe("NotificationService", () => {
       const sent = mockEmailSender.sentEmails[0];
       expect(sent.to).toEqual(["test@example.com"]);
       expect(sent.subject).toBe("Confirm your subscription");
-      expect(sent.html).toContain("confirm-email?token=abc123");
-      expect(sent.text).toContain("confirm-email?token=abc123");
+      expect(sent.html).toContain("confirm?token=abc123");
+      expect(sent.text).toContain("confirm?token=abc123");
     });
   });
 
@@ -52,8 +52,8 @@ describe("NotificationService", () => {
       const sent = mockEmailSender.sentEmails[0];
       expect(sent.to).toEqual(["new@example.com"]);
       expect(sent.subject).toBe("Confirm your email change");
-      expect(sent.html).toContain("confirm-email?token=change123");
-      expect(sent.text).toContain("confirm-email?token=change123");
+      expect(sent.html).toContain("confirm?token=change123");
+      expect(sent.text).toContain("confirm?token=change123");
     });
   });
 });
