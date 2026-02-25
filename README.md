@@ -1,17 +1,24 @@
 # Gna
 
-A lightweight, self-hosted newsletter platform running on Cloudflare Workers. Designed for [Aotokitsuruya's Blog](https://blog.aotoki.me) as a Mailchimp replacement.
+[![Test](https://github.com/elct9620/gna/actions/workflows/test.yml/badge.svg)](https://github.com/elct9620/gna/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/elct9620/gna/graph/badge.svg)](https://codecov.io/gh/elct9620/gna)
+[![License](https://img.shields.io/github/license/elct9620/gna)](LICENSE)
 
-Gna automatically generates newsletters from RSS feed updates and provides subscription management through an embeddable CORS API.
+A lightweight, self-hosted campaign platform running on Cloudflare Workers. Designed for [Aotokitsuruya's Blog](https://blog.aotoki.me) as a Mailchimp replacement.
+
+Gna automatically generates campaigns from RSS feed updates and delivers them via email, providing subscription management through an embeddable CORS API.
 
 ## Features
 
-| Feature               | Description                                                    |
-| --------------------- | -------------------------------------------------------------- |
-| RSS-to-Newsletter     | Automatically generates and sends newsletters from RSS entries |
-| Subscription API      | CORS-enabled REST API embeddable on any website                |
-| Admin Dashboard       | Subscriber management protected by Cloudflare Zero Trust       |
-| Newsletter Publishing | Manual composition with immediate send or scheduled delivery   |
+| Feature                      | Description                                                               |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| Subscription API             | CORS-enabled REST API embeddable on any website for subscribe/unsubscribe |
+| Subscriber Management        | Admin interface for viewing, searching, and managing the subscriber list  |
+| RSS Feed Campaign Generation | Automatically generates and sends campaigns from new RSS entries          |
+| Admin Authentication         | Dashboard protected by Cloudflare Zero Trust, no custom auth needed       |
+| Campaign Publishing          | Manual composition with immediate send or scheduled delivery              |
+| Subscriber Profile           | Subscribers manage their own profile via passwordless Magic Link          |
+| Channel Management           | Email delivery channel (additional channels — to be decided)              |
 
 ## Tech Stack
 
