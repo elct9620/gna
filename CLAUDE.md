@@ -56,14 +56,23 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 
 ### Dependency Injection
 
-tsyringe container is configured in `src/container.ts` and imported at the top of `src/index.tsx`. Services use `@injectable()` decorator and are resolved via `container.resolve(ServiceClass)`. The D1 database is registered as a singleton using `instanceCachingFactory` with a `DATABASE` symbol token.
+tsyringe container is configured in `src/container.ts` and imported at the top of `src/index.tsx`. Services are resolved via `container.resolve(ServiceClass)`.
 
-To add a new service:
-1. Create a class in `src/services/` with `@injectable()` decorator
-2. Register it in `src/container.ts` if it needs factory-based initialization
-3. Resolve it in middleware or route handlers via `container.resolve()`
+**esbuild limitation:** Vite uses esbuild which does not support `emitDecoratorMetadata`, so tsyringe's `@inject()` decorator cannot resolve constructor parameters. Two registration patterns coexist:
 
-Note: `experimentalDecorators` is enabled in `tsconfig.json` for tsyringe support.
+| Pattern | Registration | When to use | Examples |
+|---------|-------------|-------------|----------|
+| Decorator | `@injectable()` + `registerSingleton()` | Pure business logic, no env/context dependencies | `EmailRenderer`, `SubscriptionService` |
+| Factory | `register()` + `instanceCachingFactory()` | Needs env values, external SDK instances, or caching | `DATABASE`, `AWS_CLIENT`, `EmailSender` |
+
+Most services will be **decorator-based**. Use factory registration when the service depends on `env`, wraps a third-party client, or needs singleton caching. Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`).
+
+### Environment Variables
+
+- Public config goes in `wrangler.jsonc` under `vars`
+- Secrets go in `.dev.vars` for local development (gitignored), and via `wrangler secret put` for production
+- `pnpm cf-typegen` regenerates `worker-configuration.d.ts` from **both** sources — never edit this file manually
+- Access env values in code via `import { env } from "cloudflare:workers"`
 
 ### Adding Routes
 
@@ -80,7 +89,7 @@ Add new routes to `src/routes.tsx`. Both server SSR and client hydration share t
 - **UI Components:** shadcn/ui (new-york style, Radix UI primitives, Lucide icons). Config in `components.json`.
 - **Testing:** Vitest with `@cloudflare/vitest-pool-workers` (tests run in Worker environment)
 - **Storage:** Cloudflare D1 (SQLite) via Drizzle ORM. Schema in `src/db/schema.ts`, config in `drizzle.config.ts`.
-- **DI:** tsyringe with `reflect-metadata` for decorator-based dependency injection. Container setup in `src/container.ts`.
+- **DI:** tsyringe with `reflect-metadata`. Decorator-based for most services; factory-based for env/context dependencies (esbuild limitation). Container setup in `src/container.ts`.
 - **Auth:** Cloudflare Zero Trust JWT verification via `jose`. Service in `src/services/adminAuthService.ts`.
 - **Path alias:** `@` → `./src` (configured in tsconfig.json, vite.config.ts, and vitest.config.ts)
 
