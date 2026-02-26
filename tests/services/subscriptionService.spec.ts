@@ -2,6 +2,7 @@ import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
 import { SubscriptionService } from "@/services/subscriptionService";
+import { SubscriberRepository } from "@/repository/subscriberRepository";
 import { subscribers } from "@/db/schema";
 
 describe("SubscriptionService", () => {
@@ -10,7 +11,7 @@ describe("SubscriptionService", () => {
   beforeEach(async () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
-    service = new SubscriptionService(db);
+    service = new SubscriptionService(new SubscriberRepository(db));
   });
 
   describe("subscribe", () => {

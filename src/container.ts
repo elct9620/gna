@@ -2,6 +2,7 @@ import { container, instanceCachingFactory } from "tsyringe";
 import { drizzle } from "drizzle-orm/d1";
 import { AwsClient } from "aws4fetch";
 import { env } from "cloudflare:workers";
+import { SubscriberRepository } from "./repository/subscriberRepository";
 import { SubscriptionService } from "./services/subscriptionService";
 import { EmailRenderer } from "./services/emailRenderer";
 import { EmailSender } from "./services/emailSender";
@@ -59,9 +60,15 @@ container.register(NotificationService, {
   },
 });
 
+container.register(SubscriberRepository, {
+  useFactory: instanceCachingFactory((c) => {
+    return new SubscriberRepository(c.resolve(DATABASE));
+  }),
+});
+
 container.register(SubscriptionService, {
   useFactory: instanceCachingFactory((c) => {
-    return new SubscriptionService(c.resolve(DATABASE));
+    return new SubscriptionService(c.resolve(SubscriberRepository));
   }),
 });
 container.registerSingleton(EmailRenderer);
