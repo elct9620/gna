@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router";
 import type { InferResponseType } from "hono/client";
 
 import {
@@ -13,15 +12,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { AppSidebar } from "@/components/appSidebar";
+import { AdminLayout } from "@/components/adminLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import {
   Table,
   TableBody,
@@ -37,7 +30,6 @@ type Subscriber = InferResponseType<
 >["subscribers"][number];
 
 export function Admin() {
-  const { pathname } = useLocation();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
 
   useEffect(() => {
@@ -48,108 +40,95 @@ export function Admin() {
   }, []);
 
   return (
-    <SidebarProvider>
-      <title>Admin Dashboard - Gna</title>
-      <AppSidebar pathname={pathname} />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <h1 className="text-lg font-semibold">Admin Dashboard</h1>
-        </header>
-        <main className="flex-1 p-4">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Subscribers</h2>
-            <p className="text-sm text-muted-foreground">
-              {subscribers.length} subscriber
-              {subscribers.length !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Nickname</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {subscribers.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="text-center text-muted-foreground"
+    <AdminLayout title="Admin Dashboard - Gna" pageTitle="Admin Dashboard">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold">Subscribers</h2>
+        <p className="text-sm text-muted-foreground">
+          {subscribers.length} subscriber
+          {subscribers.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Nickname</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {subscribers.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className="text-center text-muted-foreground"
+              >
+                No subscribers yet.
+              </TableCell>
+            </TableRow>
+          ) : (
+            subscribers.map((subscriber) => (
+              <TableRow key={subscriber.email}>
+                <TableCell>{subscriber.email}</TableCell>
+                <TableCell>{subscriber.nickname ?? "\u2014"}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      subscriber.status === "activated"
+                        ? "default"
+                        : "secondary"
+                    }
                   >
-                    No subscribers yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                subscribers.map((subscriber) => (
-                  <TableRow key={subscriber.email}>
-                    <TableCell>{subscriber.email}</TableCell>
-                    <TableCell>{subscriber.nickname ?? "\u2014"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          subscriber.status === "activated"
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {subscriber.status.charAt(0).toUpperCase() +
-                          subscriber.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            Remove
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Remove subscriber
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to remove {subscriber.email}
-                              ? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={async () => {
-                                const res = await client.admin.api.subscribers[
-                                  ":email"
-                                ].$delete({
-                                  param: { email: subscriber.email },
-                                });
+                    {subscriber.status.charAt(0).toUpperCase() +
+                      subscriber.status.slice(1)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm">
+                        Remove
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove subscriber</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to remove {subscriber.email}?
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            const res = await client.admin.api.subscribers[
+                              ":email"
+                            ].$delete({
+                              param: { email: subscriber.email },
+                            });
 
-                                if (res.ok) {
-                                  setSubscribers((prev) =>
-                                    prev.filter(
-                                      (s) => s.email !== subscriber.email,
-                                    ),
-                                  );
-                                }
-                              }}
-                            >
-                              Remove
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+                            if (res.ok) {
+                              setSubscribers((prev) =>
+                                prev.filter(
+                                  (s) => s.email !== subscriber.email,
+                                ),
+                              );
+                            }
+                          }}
+                        >
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </AdminLayout>
   );
 }

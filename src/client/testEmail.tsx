@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useLocation } from "react-router";
 
-import { AppSidebar } from "@/components/appSidebar";
+import { AdminLayout } from "@/components/adminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,12 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
 import { client } from "./api";
 
 const templates = [
@@ -26,7 +20,6 @@ const templates = [
 ];
 
 export function TestEmail() {
-  const { pathname } = useLocation();
   const [template, setTemplate] = useState("");
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
@@ -62,78 +55,57 @@ export function TestEmail() {
   };
 
   return (
-    <SidebarProvider>
-      <title>Test Email - Gna</title>
-      <AppSidebar pathname={pathname} />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <h1 className="text-lg font-semibold">Test Email</h1>
-        </header>
-        <main className="flex-1 p-4">
-          <div className="max-w-md space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Send Test Email</h2>
-              <p className="text-sm text-muted-foreground">
-                Send a test email to preview a template.
-              </p>
-            </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label
-                  htmlFor="template"
-                  className="text-sm font-medium leading-none"
-                >
-                  Template
-                </label>
-                <Select value={template} onValueChange={setTemplate}>
-                  <SelectTrigger id="template" className="w-full">
-                    <SelectValue placeholder="Select a template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium leading-none"
-                >
-                  Recipient Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="test@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" disabled={sending || !template || !email}>
-                {sending ? "Sending..." : "Send Test Email"}
-              </Button>
-            </form>
-            {result && (
-              <p
-                className={
-                  result.type === "success"
-                    ? "text-sm text-green-600"
-                    : "text-sm text-destructive"
-                }
-              >
-                {result.message}
-              </p>
-            )}
+    <AdminLayout title="Test Email - Gna" pageTitle="Test Email">
+      <div className="max-w-md space-y-6">
+        <div>
+          <h2 className="text-lg font-semibold">Send Test Email</h2>
+          <p className="text-sm text-muted-foreground">
+            Send a test email to preview a template.
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="template">Template</Label>
+            <Select value={template} onValueChange={setTemplate}>
+              <SelectTrigger id="template" className="w-full">
+                <SelectValue placeholder="Select a template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+          <div className="space-y-2">
+            <Label htmlFor="email">Recipient Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="test@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" disabled={sending || !template || !email}>
+            {sending ? "Sending..." : "Send Test Email"}
+          </Button>
+        </form>
+        {result && (
+          <p
+            className={
+              result.type === "success"
+                ? "text-sm text-green-600"
+                : "text-sm text-destructive"
+            }
+          >
+            {result.message}
+          </p>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

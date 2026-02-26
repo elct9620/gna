@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { container } from "@/container";
 import { EMAIL_REGEX } from "@/lib/validation";
-import { NotificationService } from "@/services/notificationService";
+import {
+  NotificationService,
+  VALID_TEMPLATE_NAMES,
+} from "@/services/notificationService";
 import { SubscriptionService } from "@/services/subscriptionService";
-
-const VALID_TEMPLATES = ["confirmation", "magic_link", "email_change"] as const;
 
 const app = new Hono()
   .get("/subscribers", async (c) => {
@@ -36,9 +37,7 @@ const app = new Hono()
       to: string;
     }>();
 
-    if (
-      !VALID_TEMPLATES.includes(template as (typeof VALID_TEMPLATES)[number])
-    ) {
+    if (!VALID_TEMPLATE_NAMES.includes(template)) {
       return c.json({ error: "Invalid template name" }, 400);
     }
 

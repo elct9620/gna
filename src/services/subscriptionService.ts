@@ -23,6 +23,11 @@ const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
 export class SubscriptionService {
   constructor(private db: DrizzleD1Database) {}
 
+  private isExpired(expiresAt: string | null): boolean {
+    if (!expiresAt) return true;
+    return new Date(expiresAt) < new Date();
+  }
+
   private toEntity(row: typeof subscribers.$inferSelect): Subscriber {
     return new Subscriber({
       id: row.id,
@@ -122,12 +127,7 @@ export class SubscriptionService {
     if (!row) return null;
     if (row.activatedAt) return null;
 
-    if (
-      row.confirmationExpiresAt &&
-      new Date(row.confirmationExpiresAt) < new Date()
-    ) {
-      return null;
-    }
+    if (this.isExpired(row.confirmationExpiresAt)) return null;
 
     const now = new Date().toISOString();
 
@@ -180,10 +180,7 @@ export class SubscriptionService {
 
     if (!row) return null;
 
-    if (
-      !row.magicLinkExpiresAt ||
-      new Date(row.magicLinkExpiresAt) < new Date()
-    ) {
+    if (this.isExpired(row.magicLinkExpiresAt)) {
       await this.db
         .update(subscribers)
         .set({
@@ -287,12 +284,7 @@ export class SubscriptionService {
 
     if (!row || !row.activatedAt || !row.pendingEmail) return null;
 
-    if (
-      row.confirmationExpiresAt &&
-      new Date(row.confirmationExpiresAt) < new Date()
-    ) {
-      return null;
-    }
+    if (this.isExpired(row.confirmationExpiresAt)) return null;
 
     const newEmail = row.pendingEmail;
 

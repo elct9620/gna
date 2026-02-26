@@ -79,10 +79,12 @@ export function Profile() {
     }
   };
 
+  const title = <title>Profile - Gna</title>;
+
   if (emailChanged === "true") {
     return (
       <>
-        <title>Profile - Gna</title>
+        {title}
         <CenteredCard title="Email Updated">
           <p className="text-muted-foreground">
             Your email address has been updated successfully.
@@ -95,7 +97,7 @@ export function Profile() {
   if (state.status === "idle") {
     return (
       <>
-        <title>Profile - Gna</title>
+        {title}
         <CenteredCard title="Subscriber Profile">
           <p className="text-muted-foreground">
             Request a profile link from the newsletter to manage your
@@ -109,7 +111,7 @@ export function Profile() {
   if (state.status === "loading") {
     return (
       <>
-        <title>Profile - Gna</title>
+        {title}
         <CenteredCard title="Subscriber Profile">
           <p className="text-muted-foreground">Loading your profile...</p>
         </CenteredCard>
@@ -120,7 +122,7 @@ export function Profile() {
   if (state.status === "error") {
     return (
       <>
-        <title>Profile - Gna</title>
+        {title}
         <CenteredCard title="Profile Link Invalid">
           <p className="text-muted-foreground">
             {state.message} Please request a new profile link from the
@@ -134,7 +136,7 @@ export function Profile() {
   if (state.status === "updated") {
     return (
       <>
-        <title>Profile - Gna</title>
+        {title}
         <CenteredCard title="Profile Updated">
           <p className="text-muted-foreground">
             Your profile has been updated successfully.
@@ -146,7 +148,6 @@ export function Profile() {
 
   return (
     <>
-      <title>Profile - Gna</title>
       <CenteredCard
         title="Subscriber Profile"
         description="Update your subscription settings."

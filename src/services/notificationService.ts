@@ -42,6 +42,8 @@ const EMAIL_TEMPLATES: Record<string, EmailTemplateConfig> = {
   },
 };
 
+export const VALID_TEMPLATE_NAMES = Object.keys(EMAIL_TEMPLATES);
+
 export class NotificationService {
   constructor(
     private emailRenderer: EmailRenderer,
