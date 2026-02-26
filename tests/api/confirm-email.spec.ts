@@ -3,13 +3,20 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/email-sender";
-import { SubscriptionService } from "@/services/subscription-service";
+import { SubscribeCommand } from "@/use-cases/subscribe-command";
+import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
+import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
+import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
 import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
 
 describe("GET /confirm", () => {
   let mockEmailSender: MockEmailSender;
+  let subscribe: SubscribeCommand;
+  let confirmSubscription: ConfirmSubscriptionCommand;
+  let requestMagicLink: RequestMagicLinkCommand;
+  let updateProfile: UpdateProfileCommand;
 
   beforeEach(async () => {
     const db = drizzle(env.DB);
@@ -19,6 +26,10 @@ describe("GET /confirm", () => {
     container.register(EmailSender, {
       useValue: mockEmailSender as unknown as EmailSender,
     });
+    subscribe = container.resolve(SubscribeCommand);
+    confirmSubscription = container.resolve(ConfirmSubscriptionCommand);
+    requestMagicLink = container.resolve(RequestMagicLinkCommand);
+    updateProfile = container.resolve(UpdateProfileCommand);
   });
 
   it("should redirect to error page when token is missing", async () => {
@@ -28,8 +39,7 @@ describe("GET /confirm", () => {
   });
 
   it("should redirect on valid subscription confirmation", async () => {
-    const service = container.resolve(SubscriptionService);
-    const { subscriber } = await service.subscribe("confirm@example.com");
+    const { subscriber } = await subscribe.execute("confirm@example.com");
 
     const res = await app.request(
       `/confirm?token=${subscriber.confirmationToken}`,
@@ -42,8 +52,7 @@ describe("GET /confirm", () => {
   });
 
   it("should activate subscriber after confirmation", async () => {
-    const service = container.resolve(SubscriptionService);
-    const { subscriber } = await service.subscribe("activate@example.com");
+    const { subscriber } = await subscribe.execute("activate@example.com");
 
     await app.request(
       `/confirm?token=${subscriber.confirmationToken}`,
@@ -51,23 +60,25 @@ describe("GET /confirm", () => {
       env,
     );
 
-    const list = await service.listSubscribers();
+    const { ListSubscribersQuery } =
+      await import("@/use-cases/list-subscribers-query");
+    const listSubscribers = container.resolve(ListSubscribersQuery);
+    const list = await listSubscribers.execute();
     const activated = list.find((s) => s.email === "activate@example.com");
     expect(activated?.activatedAt).toBeInstanceOf(Date);
   });
 
   it("should redirect on valid email change confirmation", async () => {
-    const service = container.resolve(SubscriptionService);
-    const { subscriber } = await service.subscribe("old@example.com");
-    await service.confirmSubscription(subscriber.confirmationToken!);
+    const { subscriber } = await subscribe.execute("old@example.com");
+    await confirmSubscription.execute(subscriber.confirmationToken!);
 
-    const token = await service.requestEmailChange(
-      "old@example.com",
-      "new@example.com",
-    );
+    const magicToken = (await requestMagicLink.execute("old@example.com"))!;
+    const result = await updateProfile.execute(magicToken, {
+      email: "new@example.com",
+    });
 
     const res = await app.request(
-      `/confirm?token=${token}`,
+      `/confirm?token=${result.emailChangeToken}`,
       { redirect: "manual" },
       env,
     );

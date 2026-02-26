@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/email-sender";
-import { SubscriptionService } from "@/services/subscription-service";
+import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
@@ -170,8 +170,8 @@ describe("GET /admin/api/subscribers", () => {
       authBypass,
     );
 
-    const service = container.resolve(SubscriptionService);
-    const list = await service.listSubscribers();
+    const query = container.resolve(ListSubscribersQuery);
+    const list = await query.execute();
     const sub = list.find((s) => s.email === "active@example.com");
     const confirmToken = sub!.confirmationToken!;
 

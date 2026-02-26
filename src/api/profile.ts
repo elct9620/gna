@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { container } from "@/container";
 import { NotificationService } from "@/services/notification-service";
-import { SubscriptionService } from "@/services/subscription-service";
+import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
+import { ValidateMagicLinkQuery } from "@/use-cases/validate-magic-link-query";
+import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
 
 const app = new Hono()
   .post("/request-link", async (c) => {
@@ -9,8 +11,8 @@ const app = new Hono()
     const email = body.email ?? "";
 
     if (email) {
-      const service = container.resolve(SubscriptionService);
-      const token = await service.requestMagicLink(email);
+      const command = container.resolve(RequestMagicLinkCommand);
+      const token = await command.execute(email);
       if (token) {
         const notification = container.resolve(NotificationService);
         await notification.sendMagicLinkEmail(email, token);
@@ -25,8 +27,8 @@ const app = new Hono()
       return c.json({ error: "Missing token" }, 401);
     }
 
-    const service = container.resolve(SubscriptionService);
-    const subscriber = await service.validateMagicLink(token);
+    const query = container.resolve(ValidateMagicLinkQuery);
+    const subscriber = await query.execute(token);
     if (!subscriber) {
       return c.json({ error: "Invalid or expired token" }, 401);
     }
@@ -44,8 +46,8 @@ const app = new Hono()
       return c.json({ error: "Missing token" }, 401);
     }
 
-    const service = container.resolve(SubscriptionService);
-    const result = await service.updateProfile(body.token, {
+    const command = container.resolve(UpdateProfileCommand);
+    const result = await command.execute(body.token, {
       nickname: body.nickname,
       email: body.email,
     });

@@ -1,17 +1,18 @@
 import { Hono } from "hono";
 import { container } from "@/container";
 import { NotificationService } from "@/services/notification-service";
-import { SubscriptionService } from "@/services/subscription-service";
+import { SubscribeCommand } from "@/use-cases/subscribe-command";
+import { UnsubscribeCommand } from "@/use-cases/unsubscribe-command";
 
 const app = new Hono()
   .post("/subscribe", async (c) => {
-    const service = container.resolve(SubscriptionService);
+    const command = container.resolve(SubscribeCommand);
     const notification = container.resolve(NotificationService);
     const body = await c.req.json<{ email?: string; nickname?: string }>();
 
     let result;
     try {
-      result = await service.subscribe(body.email ?? "", body.nickname);
+      result = await command.execute(body.email ?? "", body.nickname);
     } catch {
       return c.json({ error: "Invalid email address" }, 400);
     }
@@ -31,8 +32,8 @@ const app = new Hono()
       return c.json({ error: "Missing token" }, 400);
     }
 
-    const service = container.resolve(SubscriptionService);
-    await service.unsubscribe(token);
+    const command = container.resolve(UnsubscribeCommand);
+    await command.execute(token);
 
     return c.redirect("/unsubscribe?status=success", 302);
   });

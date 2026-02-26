@@ -52,4 +52,14 @@ export class Subscriber {
   get isPending(): boolean {
     return this.status === "pending";
   }
+
+  get isConfirmationExpired(): boolean {
+    if (!this.confirmationExpiresAt) return true;
+    return this.confirmationExpiresAt < new Date();
+  }
+
+  get isMagicLinkExpired(): boolean {
+    if (!this.magicLinkExpiresAt) return true;
+    return this.magicLinkExpiresAt < new Date();
+  }
 }

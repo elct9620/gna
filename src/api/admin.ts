@@ -5,12 +5,13 @@ import {
   NotificationService,
   VALID_TEMPLATE_NAMES,
 } from "@/services/notification-service";
-import { SubscriptionService } from "@/services/subscription-service";
+import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
+import { RemoveSubscriberCommand } from "@/use-cases/remove-subscriber-command";
 
 const app = new Hono()
   .get("/subscribers", async (c) => {
-    const service = container.resolve(SubscriptionService);
-    const subscribers = await service.listSubscribers();
+    const query = container.resolve(ListSubscribersQuery);
+    const subscribers = await query.execute();
 
     return c.json({
       subscribers: subscribers.map((s) => ({
@@ -22,8 +23,8 @@ const app = new Hono()
   })
   .delete("/subscribers/:email", async (c) => {
     const email = c.req.param("email");
-    const service = container.resolve(SubscriptionService);
-    const removed = await service.removeSubscriber(email);
+    const command = container.resolve(RemoveSubscriberCommand);
+    const removed = await command.execute(email);
 
     if (!removed) {
       return c.json({ error: "Subscriber not found" }, 404);
