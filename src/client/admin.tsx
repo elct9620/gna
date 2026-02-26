@@ -31,12 +31,20 @@ type Subscriber = InferResponseType<
 
 export function Admin() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     client.admin.api.subscribers
       .$get()
-      .then((res) => res.json())
-      .then((data) => setSubscribers(data.subscribers));
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch subscribers");
+        return res.json();
+      })
+      .then((data) => setSubscribers(data.subscribers))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -48,6 +56,16 @@ export function Admin() {
           {subscribers.length !== 1 ? "s" : ""}
         </p>
       </div>
+      {error && (
+        <div className="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+      {deleteError && (
+        <div className="mb-4 rounded-md border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+          {deleteError}
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
@@ -58,7 +76,16 @@ export function Admin() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {subscribers.length === 0 ? (
+          {loading ? (
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className="text-center text-muted-foreground"
+              >
+                Loading...
+              </TableCell>
+            </TableRow>
+          ) : subscribers.length === 0 ? (
             <TableRow>
               <TableCell
                 colSpan={4}
@@ -103,17 +130,28 @@ export function Admin() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={async () => {
-                            const res = await client.admin.api.subscribers[
-                              ":email"
-                            ].$delete({
-                              param: { email: subscriber.email },
-                            });
+                            setDeleteError(null);
+                            try {
+                              const res = await client.admin.api.subscribers[
+                                ":email"
+                              ].$delete({
+                                param: { email: subscriber.email },
+                              });
 
-                            if (res.ok) {
-                              setSubscribers((prev) =>
-                                prev.filter(
-                                  (s) => s.email !== subscriber.email,
-                                ),
+                              if (res.ok) {
+                                setSubscribers((prev) =>
+                                  prev.filter(
+                                    (s) => s.email !== subscriber.email,
+                                  ),
+                                );
+                              } else {
+                                setDeleteError(
+                                  `Failed to remove ${subscriber.email}`,
+                                );
+                              }
+                            } catch {
+                              setDeleteError(
+                                `Failed to remove ${subscriber.email}`,
                               );
                             }
                           }}
