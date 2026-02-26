@@ -88,30 +88,22 @@
       "indexes": {
         "idx_subscribers_email": {
           "name": "idx_subscribers_email",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": true
         },
         "idx_subscribers_unsubscribe_token": {
           "name": "idx_subscribers_unsubscribe_token",
-          "columns": [
-            "unsubscribe_token"
-          ],
+          "columns": ["unsubscribe_token"],
           "isUnique": true
         },
         "idx_subscribers_confirmation_token": {
           "name": "idx_subscribers_confirmation_token",
-          "columns": [
-            "confirmation_token"
-          ],
+          "columns": ["confirmation_token"],
           "isUnique": false
         },
         "idx_subscribers_magic_link_token": {
           "name": "idx_subscribers_magic_link_token",
-          "columns": [
-            "magic_link_token"
-          ],
+          "columns": ["magic_link_token"],
           "isUnique": false
         }
       },
