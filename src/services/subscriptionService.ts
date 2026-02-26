@@ -231,13 +231,10 @@ export class SubscriptionService {
     const result: UpdateProfileResult = {};
 
     if (updates.email && updates.email !== subscriber.email) {
-      const emailToken = await this.requestEmailChange(
+      result.emailChangeToken = (await this.requestEmailChange(
         subscriber.email,
         updates.email,
-      );
-      if (emailToken) {
-        result.emailChangeToken = emailToken;
-      }
+      ))!;
     }
 
     return result;

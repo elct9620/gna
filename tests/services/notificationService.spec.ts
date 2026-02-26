@@ -56,4 +56,12 @@ describe("NotificationService", () => {
       expect(sent.text).toContain("confirm?token=change123");
     });
   });
+
+  describe("sendTestTemplateEmail", () => {
+    it("should throw error for unknown template", async () => {
+      await expect(
+        service.sendTestTemplateEmail("nonexistent", "test@example.com"),
+      ).rejects.toThrow("Unknown template: nonexistent");
+    });
+  });
 });
