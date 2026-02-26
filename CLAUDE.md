@@ -48,34 +48,49 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 
 ### Key Directories
 
+- `src/api/` — Hono sub-app route handlers (`subscription.ts`, `profile.ts`, `confirm.ts`, `admin.ts`)
 - `src/client/` — Client-side React code: hydration entry (`index.tsx`), page components (`admin.tsx`, `app.tsx`, `unsubscribe.tsx`), styles
 - `src/components/` — Shared React components (internal, kebab-case naming)
 - `src/components/ui/` — shadcn/ui components (added via `pnpm dlx shadcn@latest add`)
 - `src/db/` — Drizzle ORM schema (`schema.ts`) with `subscribers` table definition
 - `src/emails/` — React Email templates (`base-email.tsx` + specific emails), rendered server-side by `EmailRenderer`
-- `src/entities/` — Domain models (e.g., `Subscriber` with status getters like `isActivated`, `isPending`)
-- `src/hooks/` — React hooks (e.g., `use-mobile.ts` from shadcn/ui)
-- `src/lib/` — Shared utilities (`cn()` class merge helper, `uuidv7()` ID generator)
+- `src/entities/` — Domain models (e.g., `Subscriber` with readonly properties and computed status getters)
+- `src/lib/` — Shared utilities (`cn()` class merge helper, `uuidv7()` ID generator, `validation.ts` for `EMAIL_REGEX`)
 - `src/middleware/` — Hono middleware (e.g., `adminAuth.ts` for JWT verification)
-- `src/services/` — Business logic services (e.g., `subscriptionService.ts`, `notificationService.ts`)
-- `src/api/` — Hono sub-app route handlers (`subscription.ts`, `profile.ts`, `confirm.ts`, `admin.ts`)
-- `tests/` — Vitest integration tests using Cloudflare Workers pool (mirrors `src/` structure)
-- `tests/helpers/` — Test utilities (e.g., `MockEmailSender`)
+- `src/repository/` — Data access layer implementing port interfaces (e.g., `SubscriberRepository`)
+- `src/services/` — Infrastructure services (`EmailRenderer`, `EmailSender`, `NotificationService`, `Logger`, `AdminAuthService`)
+- `src/use-cases/` — CQRS commands and queries (business logic)
+- `src/use-cases/ports/` — Port interfaces for dependency inversion (`ISubscriberRepository`, `IEmailDelivery`)
+- `tests/` — Vitest integration tests using Cloudflare Workers pool
+- `tests/helpers/` — Test utilities (`MockEmailSender`, `MockLogger`)
 - `drizzle/` — Generated D1 migration SQL files (via `pnpm db:generate`)
+
+### CQRS Use Cases
+
+Business logic lives in `src/use-cases/` as Commands (mutate state) and Queries (read-only):
+
+- **Commands:** `SubscribeCommand`, `ConfirmSubscriptionCommand`, `UpdateProfileCommand`, `UnsubscribeCommand`, `RemoveSubscriberCommand`, `RequestMagicLinkCommand`, `ConfirmEmailChangeCommand`, `SendConfirmationEmailCommand`, `SendMagicLinkEmailCommand`, `SendEmailChangeConfirmationCommand`, `SendTestEmailCommand`
+- **Queries:** `ListSubscribersQuery`, `ValidateMagicLinkQuery`
+
+Use cases depend on **port interfaces** (`src/use-cases/ports/`), not concrete implementations:
+
+- `ISubscriberRepository` — data access abstraction (implemented by `SubscriberRepository`)
+- `IEmailDelivery` — email sending abstraction (implemented by `NotificationService`)
+
+Commands return typed result objects with action descriptors (e.g., `{ subscriber, action: "created" | "resend" | "none" }`). Queries return values or null. API routes resolve use cases from the container and orchestrate them.
 
 ### Dependency Injection
 
 tsyringe container is configured in `src/container.ts` and imported at the top of `src/index.tsx`. Services are resolved via `container.resolve(ServiceClass)`.
 
-**esbuild limitation:** Vite uses esbuild which does not support `emitDecoratorMetadata`, so tsyringe's `@inject()` decorator cannot resolve constructor parameters. Three registration patterns coexist:
+**esbuild limitation:** Vite uses esbuild which does not support `emitDecoratorMetadata`, so tsyringe's `@inject()` decorator cannot resolve constructor parameters. Two registration patterns coexist:
 
-| Pattern              | Registration                               | When to use                                                    | Examples                                |
-| -------------------- | ------------------------------------------ | -------------------------------------------------------------- | --------------------------------------- |
-| Decorator + register | `@injectable()` + `registerSingleton()`    | Pure business logic with constructor deps                      | `EmailRenderer`, `SubscriptionService`  |
-| Decorator only       | `@injectable()` (no explicit registration) | No constructor deps; resolved ad-hoc via `container.resolve()` | `AdminAuthService`                      |
-| Factory              | `register()` + `instanceCachingFactory()`  | Needs env values, external SDK instances, or caching           | `DATABASE`, `AWS_CLIENT`, `EmailSender` |
+| Pattern   | Registration                              | When to use                                    | Examples                                                   |
+| --------- | ----------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| Singleton | `registerSingleton()`                     | No constructor deps                            | `EmailRenderer`, `Logger`                                  |
+| Factory   | `register()` + `instanceCachingFactory()` | Needs env values, constructor deps, or caching | Use cases, repositories, `EmailSender`, `AdminAuthService` |
 
-Most services will be **decorator-based**. Use factory registration when the service depends on `env`, wraps a third-party client, or needs singleton caching. Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`). Scalar env values injected into services also use Symbol tokens registered via factory.
+Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`, `BASE_URL`). Notification commands (e.g., `SendConfirmationEmailCommand`) use factory without caching to get fresh instances.
 
 ### Database
 
@@ -87,10 +102,11 @@ Most services will be **decorator-based**. Use factory registration when the ser
 
 ### Email Services
 
-- `NotificationService` — Orchestrates email sending (confirmation, magic link, email change)
-- `EmailRenderer` — Renders React Email components (`@react-email/components`) to HTML and plain text via `@react-email/render`
+- `NotificationService` — Implements `IEmailDelivery` port; composes `EmailRenderer` + `EmailSender`
+- `EmailRenderer` — Renders React Email components to HTML and plain text via `@react-email/render`
 - `EmailSender` — Wraps AWS SES v2 API via `aws4fetch` for v4 request signing
 - Email templates extend `BaseEmail` component with props: `previewText`, `heading`, `bodyText`, `actionUrl`, `actionText`
+- `Logger` — Simple abstraction over `console.*` methods (`error`, `warn`, `info`); registered as singleton
 
 ### Hono RPC Client
 
@@ -112,13 +128,14 @@ Client-side code uses Hono's type-safe RPC client for API calls:
 - API routes are Hono sub-apps in `src/api/*.ts`, mounted in `src/index.tsx` before the catch-all handler
 - Error responses: `return c.json({ error: "message" }, statusCode)`
 - Request validation: `c.req.query()` for query params, `await c.req.json<Type>()` for body
-- Services resolved inline: `const service = container.resolve(SubscriptionService)`
+- Resolve use cases inline: `const command = container.resolve(SubscribeCommand)`
+- Typical flow: resolve use case → execute → conditionally resolve notification command → return JSON
 
-### Entity Pattern
+### Entity and Repository Patterns
 
-- Entities use readonly properties and immutable design (constructed from a `Data` interface defining their domain attributes)
-- Services convert DB rows to entities via a private `toEntity()` helper method
-- Service methods return result objects with action descriptors (e.g., `{ subscriber, action: "created" | "resend" | "none" }`)
+- Entities use readonly properties and immutable design (constructed from a `Data` interface)
+- `Subscriber` entity has computed getters: `status`, `isActivated`, `isPending`, `isConfirmationExpired`, `isMagicLinkExpired`
+- `SubscriberRepository` converts DB rows to entities via a private `toSubscriberEntity()` helper — never exposes raw Drizzle rows
 
 ### Adding Routes
 
@@ -152,8 +169,8 @@ Add new routes to `src/routes.tsx`. Both server SSR and client hydration share t
 - Test files go in `tests/` with `.spec.ts` extension
 - Tests run inside the Cloudflare Workers runtime via `@cloudflare/vitest-pool-workers`
 - Import test utilities from `cloudflare:test` for worker-specific APIs (e.g. `env` bindings)
-- `tests/setup.ts` imports `reflect-metadata` and applies D1 migrations globally
-- Vitest config references `wrangler.jsonc` for worker bindings
+- `tests/setup.ts` imports `reflect-metadata`, applies D1 migrations globally, and silences console output (spies on `log`/`info`/`warn`/`error`)
+- Vitest config references `wrangler.jsonc` for worker bindings; uses `singleWorker: true` to avoid spawning too many workerd processes
 - Override env bindings in integration tests via the third argument to `app.request()`: `app.request("/path", {}, { ...env, DISABLE_AUTH: "true" })`
 - Mock services by re-registering on the tsyringe container: `container.register(EmailSender, { useValue: mockInstance })`
 - Radix UI transitive dependencies (`react-remove-scroll`, `react-remove-scroll-bar`) must be listed in `vitest.config.ts` under `test.deps.optimizer.ssr.include` and as explicit devDependencies, otherwise workerd cannot resolve their bare specifier imports
