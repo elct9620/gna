@@ -19,6 +19,8 @@ import { SendConfirmationEmailCommand } from "./use-cases/send-confirmation-emai
 import { SendMagicLinkEmailCommand } from "./use-cases/send-magic-link-email-command";
 import { SendEmailChangeConfirmationCommand } from "./use-cases/send-email-change-confirmation-command";
 import { SendTestEmailCommand } from "./use-cases/send-test-email-command";
+import { Logger } from "./services/logger";
+import { AdminAuthService } from "./services/admin-auth-service";
 
 export const DATABASE = Symbol("DATABASE");
 export const AWS_CLIENT = Symbol("AWS_CLIENT");
@@ -171,5 +173,12 @@ container.register(SendTestEmailCommand, {
 });
 
 container.registerSingleton(EmailRenderer);
+container.registerSingleton(Logger);
+
+container.register(AdminAuthService, {
+  useFactory: instanceCachingFactory((c) => {
+    return new AdminAuthService(c.resolve(Logger));
+  }),
+});
 
 export { container };

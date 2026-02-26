@@ -1,12 +1,13 @@
-import { injectable } from "tsyringe";
 import { createRemoteJWKSet, jwtVerify, errors } from "jose";
+import { Logger } from "./logger";
 
 type AuthResult =
   | { success: true }
   | { success: false; error: string; status: 401 | 403 | 500 | 503 };
 
-@injectable()
 export class AdminAuthService {
+  constructor(private logger: Logger) {}
+
   async verify(env: Env, token: string | undefined): Promise<AuthResult> {
     if (env.DISABLE_AUTH === "true") {
       return { success: true };
@@ -16,7 +17,7 @@ export class AdminAuthService {
     const aud = env.CF_ACCESS_AUD;
 
     if (!teamName || !aud) {
-      console.error(
+      this.logger.error(
         "Admin auth misconfiguration: CF_ACCESS_TEAM_NAME or CF_ACCESS_AUD not set",
       );
       return { success: false, error: "Server misconfiguration", status: 500 };
