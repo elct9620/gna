@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CenteredCard } from "@/components/centeredCard";
+import { CenteredCard } from "@/components/centered-card";
 import { client } from "./api";
 
 export function App() {

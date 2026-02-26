@@ -1,4 +1,4 @@
-import type { SendEmailParams } from "@/services/emailSender";
+import type { SendEmailParams } from "@/services/email-sender";
 
 export class MockEmailSender {
   sentEmails: SendEmailParams[] = [];

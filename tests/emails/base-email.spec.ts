@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import { container } from "@/container";
-import { EmailRenderer } from "@/services/emailRenderer";
-import { BaseEmail } from "@/emails/baseEmail";
+import { EmailRenderer } from "@/services/email-renderer";
+import { BaseEmail } from "@/emails/base-email";
 
 describe("BaseEmail", () => {
   const renderer = container.resolve(EmailRenderer);

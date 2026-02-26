@@ -3,9 +3,9 @@ import { Admin } from "./client/admin";
 import { App } from "./client/app";
 import { Confirmed } from "./client/confirmed";
 import { Profile } from "./client/profile";
-import { TestEmail } from "./client/testEmail";
+import { TestEmail } from "./client/test-email";
 import { Unsubscribe } from "./client/unsubscribe";
-import { ErrorBoundary } from "./components/errorBoundary";
+import { ErrorBoundary } from "./components/error-boundary";
 
 export const routes: RouteObject[] = [
   { path: "/", Component: App, ErrorBoundary },

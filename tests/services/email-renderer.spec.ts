@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import { Html, Text } from "@react-email/components";
 import { container } from "@/container";
-import { EmailRenderer } from "@/services/emailRenderer";
+import { EmailRenderer } from "@/services/email-renderer";
 
 describe("EmailRenderer", () => {
   it("should resolve from DI container", () => {

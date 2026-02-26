@@ -1,5 +1,5 @@
 import { useLocation } from "react-router";
-import { AppSidebar } from "@/components/appSidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { NotificationService } from "@/services/notificationService";
-import { SubscriptionService } from "@/services/subscriptionService";
+import { NotificationService } from "@/services/notification-service";
+import { SubscriptionService } from "@/services/subscription-service";
 
 const app = new Hono()
   .post("/request-link", async (c) => {

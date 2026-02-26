@@ -4,8 +4,8 @@ import { EMAIL_REGEX } from "@/lib/validation";
 import {
   NotificationService,
   VALID_TEMPLATE_NAMES,
-} from "@/services/notificationService";
-import { SubscriptionService } from "@/services/subscriptionService";
+} from "@/services/notification-service";
+import { SubscriptionService } from "@/services/subscription-service";
 
 const app = new Hono()
   .get("/subscribers", async (c) => {

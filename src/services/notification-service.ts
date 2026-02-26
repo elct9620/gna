@@ -1,7 +1,7 @@
 import { createElement } from "react";
-import { EmailRenderer } from "./emailRenderer";
-import { EmailSender } from "./emailSender";
-import { BaseEmail, type BaseEmailProps } from "@/emails/baseEmail";
+import { EmailRenderer } from "./email-renderer";
+import { EmailSender } from "./email-sender";
+import { BaseEmail, type BaseEmailProps } from "@/emails/base-email";
 
 interface EmailTemplateConfig {
   subject: string;

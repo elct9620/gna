@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import {
   SubscriberRepository,
   toSubscriberEntity,
-} from "@/repository/subscriberRepository";
+} from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 
 describe("SubscriberRepository", () => {

@@ -4,7 +4,7 @@ import {
   SubscriberRepository,
   toSubscriberEntity,
   type SubscriberRow,
-} from "@/repository/subscriberRepository";
+} from "@/repository/subscriber-repository";
 
 export type SubscribeAction = "created" | "resend" | "none";
 

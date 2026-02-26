@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AwsClient } from "aws4fetch";
-import { EmailSender } from "@/services/emailSender";
+import { EmailSender } from "@/services/email-sender";
 
 describe("EmailSender", () => {
   function createMockClient(fetchImpl: typeof fetch) {

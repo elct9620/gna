@@ -11,7 +11,7 @@ import subscriptionApi from "./api/subscription";
 import confirmApi from "./api/confirm";
 import profileApi from "./api/profile";
 import adminApi from "./api/admin";
-import { adminAuth } from "./middleware/adminAuth";
+import { adminAuth } from "./middleware/admin-auth";
 import { renderer } from "./renderer";
 import { routes } from "./routes";
 

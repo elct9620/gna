@@ -1,9 +1,9 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { container } from "@/container";
-import { EmailSender } from "@/services/emailSender";
+import { EmailSender } from "@/services/email-sender";
 import app from "@/index";
-import { MockEmailSender } from "../helpers/mockEmailSender";
+import { MockEmailSender } from "../helpers/mock-email-sender";
 
 const authBypass = { ...env, DISABLE_AUTH: "true" };
 

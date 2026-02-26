@@ -49,10 +49,10 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 ### Key Directories
 
 - `src/client/` — Client-side React code: hydration entry (`index.tsx`), page components (`admin.tsx`, `app.tsx`, `unsubscribe.tsx`), styles
-- `src/components/` — Shared React components (internal, camelCase naming)
+- `src/components/` — Shared React components (internal, kebab-case naming)
 - `src/components/ui/` — shadcn/ui components (added via `pnpm dlx shadcn@latest add`)
 - `src/db/` — Drizzle ORM schema (`schema.ts`) with `subscribers` table definition
-- `src/emails/` — React Email templates (`baseEmail.tsx` + specific emails), rendered server-side by `EmailRenderer`
+- `src/emails/` — React Email templates (`base-email.tsx` + specific emails), rendered server-side by `EmailRenderer`
 - `src/entities/` — Domain models (e.g., `Subscriber` with status getters like `isActivated`, `isPending`)
 - `src/hooks/` — React hooks (e.g., `use-mobile.ts` from shadcn/ui)
 - `src/lib/` — Shared utilities (`cn()` class merge helper, `uuidv7()` ID generator)
@@ -137,13 +137,13 @@ Add new routes to `src/routes.tsx`. Both server SSR and client hydration share t
 - **Storage:** Cloudflare D1 (SQLite) via Drizzle ORM. Schema in `src/db/schema.ts`, config in `drizzle.config.ts`.
 - **Email:** React Email templates rendered server-side, sent via AWS SES (aws4fetch)
 - **DI:** tsyringe with `reflect-metadata`. Decorator-based for most services; factory-based for env/context dependencies (esbuild limitation). Container setup in `src/container.ts`.
-- **Auth:** Cloudflare Zero Trust JWT verification via `jose`. Service in `src/services/adminAuthService.ts`.
+- **Auth:** Cloudflare Zero Trust JWT verification via `jose`. Service in `src/services/admin-auth-service.ts`.
 - **Path alias:** `@` → `./src` (configured in tsconfig.json, vite.config.ts, and vitest.config.ts)
 
 ## Naming Conventions
 
-- Internal TypeScript files use **camelCase** (e.g. `errorBoundary.tsx`, `feedParser.ts`)
-- shadcn/ui generated files keep their original lowercase naming (e.g. `button.tsx`, `card.tsx`)
+- Internal TypeScript files use **kebab-case** (e.g. `error-boundary.tsx`, `feed-parser.ts`)
+- shadcn/ui generated files keep their original kebab-case naming (e.g. `button.tsx`, `card.tsx`)
 
 ## Testing Conventions
 

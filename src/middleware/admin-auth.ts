@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import { container } from "tsyringe";
-import { AdminAuthService } from "@/services/adminAuthService";
+import { AdminAuthService } from "@/services/admin-auth-service";
 
 export const adminAuth = createMiddleware<{ Bindings: Env }>(
   async (c, next) => {

@@ -1,8 +1,8 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
-import { SubscriptionService } from "@/services/subscriptionService";
-import { SubscriberRepository } from "@/repository/subscriberRepository";
+import { SubscriptionService } from "@/services/subscription-service";
+import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 
 describe("SubscriptionService", () => {

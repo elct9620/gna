@@ -2,11 +2,11 @@ import { container, instanceCachingFactory } from "tsyringe";
 import { drizzle } from "drizzle-orm/d1";
 import { AwsClient } from "aws4fetch";
 import { env } from "cloudflare:workers";
-import { SubscriberRepository } from "./repository/subscriberRepository";
-import { SubscriptionService } from "./services/subscriptionService";
-import { EmailRenderer } from "./services/emailRenderer";
-import { EmailSender } from "./services/emailSender";
-import { NotificationService } from "./services/notificationService";
+import { SubscriberRepository } from "./repository/subscriber-repository";
+import { SubscriptionService } from "./services/subscription-service";
+import { EmailRenderer } from "./services/email-renderer";
+import { EmailSender } from "./services/email-sender";
+import { NotificationService } from "./services/notification-service";
 
 export const DATABASE = Symbol("DATABASE");
 export const AWS_CLIENT = Symbol("AWS_CLIENT");

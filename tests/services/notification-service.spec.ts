@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { container } from "@/container";
-import { EmailRenderer } from "@/services/emailRenderer";
-import { NotificationService } from "@/services/notificationService";
-import { MockEmailSender } from "../helpers/mockEmailSender";
+import { EmailRenderer } from "@/services/email-renderer";
+import { NotificationService } from "@/services/notification-service";
+import { MockEmailSender } from "../helpers/mock-email-sender";
 
 describe("NotificationService", () => {
   let mockEmailSender: MockEmailSender;
@@ -13,7 +13,7 @@ describe("NotificationService", () => {
     const renderer = container.resolve(EmailRenderer);
     service = new NotificationService(
       renderer,
-      mockEmailSender as unknown as import("@/services/emailSender").EmailSender,
+      mockEmailSender as unknown as import("@/services/email-sender").EmailSender,
       "https://test.example.com",
     );
   });

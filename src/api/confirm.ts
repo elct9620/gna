@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { SubscriptionService } from "@/services/subscriptionService";
+import { SubscriptionService } from "@/services/subscription-service";
 
 const app = new Hono().get("/", async (c) => {
   const token = c.req.query("token");

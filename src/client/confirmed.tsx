@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router";
-import { CenteredCard } from "@/components/centeredCard";
+import { CenteredCard } from "@/components/centered-card";
 
 export function Confirmed() {
   const [searchParams] = useSearchParams();
