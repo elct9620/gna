@@ -1,4 +1,4 @@
-import { SubscriberRepository } from "@/repository/subscriber-repository";
+import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import { ValidateMagicLinkQuery } from "./validate-magic-link-query";
 
 export interface UpdateProfileResult {
@@ -10,7 +10,7 @@ const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export class UpdateProfileCommand {
   constructor(
-    private repo: SubscriberRepository,
+    private repo: ISubscriberRepository,
     private validateMagicLink: ValidateMagicLinkQuery,
   ) {}
 
@@ -51,15 +51,15 @@ export class UpdateProfileCommand {
     email: string,
     newEmail: string,
   ): Promise<string | undefined> {
-    const row = await this.repo.findByEmail(email);
+    const subscriber = await this.repo.findByEmail(email);
 
-    if (!row || !row.activatedAt) return undefined;
+    if (!subscriber || !subscriber.isActivated) return undefined;
 
     const changeToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
 
     await this.repo.updatePendingEmail(
-      row.id,
+      subscriber.id,
       newEmail,
       changeToken,
       expiresAt,

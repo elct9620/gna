@@ -1,10 +1,8 @@
 import { Hono } from "hono";
 import { container } from "@/container";
 import { EMAIL_REGEX } from "@/lib/validation";
-import {
-  NotificationService,
-  VALID_TEMPLATE_NAMES,
-} from "@/services/notification-service";
+import { VALID_TEMPLATE_NAMES } from "@/emails/templates";
+import { SendTestEmailCommand } from "@/use-cases/send-test-email-command";
 import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { RemoveSubscriberCommand } from "@/use-cases/remove-subscriber-command";
 
@@ -46,10 +44,10 @@ const app = new Hono()
       return c.json({ error: "Invalid email address" }, 400);
     }
 
-    const service = container.resolve(NotificationService);
+    const command = container.resolve(SendTestEmailCommand);
 
     try {
-      await service.sendTestTemplateEmail(template, to);
+      await command.execute(template, to);
     } catch {
       return c.json({ error: "Email service unavailable" }, 503);
     }

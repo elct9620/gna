@@ -3,10 +3,11 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 
 import { subscribers } from "@/db/schema";
 import { Subscriber } from "@/entities/subscriber";
+import type { ISubscriberRepository } from "@/use-cases/ports/subscriber-repository";
 
-export type SubscriberRow = typeof subscribers.$inferSelect;
+type SubscriberRow = typeof subscribers.$inferSelect;
 
-export function toSubscriberEntity(row: SubscriberRow): Subscriber {
+function toSubscriberEntity(row: SubscriberRow): Subscriber {
   return new Subscriber({
     id: row.id,
     email: row.email,
@@ -26,35 +27,39 @@ export function toSubscriberEntity(row: SubscriberRow): Subscriber {
   });
 }
 
-export class SubscriberRepository {
+export class SubscriberRepository implements ISubscriberRepository {
   constructor(private db: DrizzleD1Database) {}
 
-  async findByEmail(email: string): Promise<SubscriberRow | undefined> {
-    return this.db
+  async findByEmail(email: string): Promise<Subscriber | undefined> {
+    const row = await this.db
       .select()
       .from(subscribers)
       .where(eq(subscribers.email, email))
       .get();
+
+    return row ? toSubscriberEntity(row) : undefined;
   }
 
   async findByConfirmationToken(
     token: string,
-  ): Promise<SubscriberRow | undefined> {
-    return this.db
+  ): Promise<Subscriber | undefined> {
+    const row = await this.db
       .select()
       .from(subscribers)
       .where(eq(subscribers.confirmationToken, token))
       .get();
+
+    return row ? toSubscriberEntity(row) : undefined;
   }
 
-  async findByMagicLinkToken(
-    token: string,
-  ): Promise<SubscriberRow | undefined> {
-    return this.db
+  async findByMagicLinkToken(token: string): Promise<Subscriber | undefined> {
+    const row = await this.db
       .select()
       .from(subscribers)
       .where(eq(subscribers.magicLinkToken, token))
       .get();
+
+    return row ? toSubscriberEntity(row) : undefined;
   }
 
   async existsByEmail(email: string): Promise<boolean> {
@@ -78,7 +83,7 @@ export class SubscriberRepository {
     unsubscribeToken: string;
     confirmationToken: string;
     confirmationExpiresAt: string;
-  }): Promise<SubscriberRow> {
+  }): Promise<Subscriber> {
     const [inserted] = await this.db
       .insert(subscribers)
       .values({
@@ -90,7 +95,7 @@ export class SubscriberRepository {
       })
       .returning();
 
-    return inserted;
+    return toSubscriberEntity(inserted);
   }
 
   async updateConfirmationToken(

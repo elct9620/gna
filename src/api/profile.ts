@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { NotificationService } from "@/services/notification-service";
+import { SendMagicLinkEmailCommand } from "@/use-cases/send-magic-link-email-command";
+import { SendEmailChangeConfirmationCommand } from "@/use-cases/send-email-change-confirmation-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
 import { ValidateMagicLinkQuery } from "@/use-cases/validate-magic-link-query";
 import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
@@ -14,8 +15,8 @@ const app = new Hono()
       const command = container.resolve(RequestMagicLinkCommand);
       const token = await command.execute(email);
       if (token) {
-        const notification = container.resolve(NotificationService);
-        await notification.sendMagicLinkEmail(email, token);
+        const sendMagicLink = container.resolve(SendMagicLinkEmailCommand);
+        await sendMagicLink.execute(email, token);
       }
     }
 
@@ -60,11 +61,10 @@ const app = new Hono()
     }
 
     if (result.emailChangeToken && body.email) {
-      const notification = container.resolve(NotificationService);
-      await notification.sendEmailChangeConfirmation(
-        body.email,
-        result.emailChangeToken,
+      const sendEmailChange = container.resolve(
+        SendEmailChangeConfirmationCommand,
       );
+      await sendEmailChange.execute(body.email, result.emailChangeToken);
     }
 
     return c.json({ status: "updated" }, 200);

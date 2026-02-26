@@ -1,7 +1,7 @@
-import { SubscriberRepository } from "@/repository/subscriber-repository";
+import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export class UnsubscribeCommand {
-  constructor(private repo: SubscriberRepository) {}
+  constructor(private repo: ISubscriberRepository) {}
 
   async execute(token: string): Promise<void> {
     await this.repo.deleteByUnsubscribeToken(token);

@@ -14,54 +14,40 @@ describe("NotificationService", () => {
     service = new NotificationService(
       renderer,
       mockEmailSender as unknown as import("@/services/email-sender").EmailSender,
-      "https://test.example.com",
     );
   });
 
-  describe("sendConfirmationEmail", () => {
-    it("should send a confirmation email with correct URL", async () => {
-      await service.sendConfirmationEmail("test@example.com", "abc123");
+  describe("send", () => {
+    it("should render and send email with correct content", async () => {
+      await service.send("test@example.com", "Test Subject", {
+        previewText: "Preview",
+        heading: "Heading",
+        bodyText: "Body text",
+        actionUrl: "https://example.com/action",
+        actionText: "Click Me",
+      });
 
       expect(mockEmailSender.sentEmails).toHaveLength(1);
       const sent = mockEmailSender.sentEmails[0];
       expect(sent.to).toEqual(["test@example.com"]);
-      expect(sent.subject).toBe("Confirm your subscription");
-      expect(sent.html).toContain("confirm?token=abc123");
-      expect(sent.text).toContain("confirm?token=abc123");
+      expect(sent.subject).toBe("Test Subject");
+      expect(sent.html).toContain("Heading");
+      expect(sent.html).toContain("https://example.com/action");
+      expect(sent.text.toUpperCase()).toContain("HEADING");
+      expect(sent.text).toContain("https://example.com/action");
     });
-  });
 
-  describe("sendMagicLinkEmail", () => {
-    it("should send a magic link email with correct URL", async () => {
-      await service.sendMagicLinkEmail("test@example.com", "magic123");
+    it("should include action text in rendered output", async () => {
+      await service.send("test@example.com", "Subject", {
+        previewText: "Preview",
+        heading: "Test Heading",
+        bodyText: "Test body",
+        actionUrl: "https://example.com/test",
+        actionText: "Do Something",
+      });
 
-      expect(mockEmailSender.sentEmails).toHaveLength(1);
       const sent = mockEmailSender.sentEmails[0];
-      expect(sent.to).toEqual(["test@example.com"]);
-      expect(sent.subject).toBe("Your profile access link");
-      expect(sent.html).toContain("/profile?token=magic123");
-      expect(sent.text).toContain("/profile?token=magic123");
-    });
-  });
-
-  describe("sendEmailChangeConfirmation", () => {
-    it("should send an email change confirmation with correct URL", async () => {
-      await service.sendEmailChangeConfirmation("new@example.com", "change123");
-
-      expect(mockEmailSender.sentEmails).toHaveLength(1);
-      const sent = mockEmailSender.sentEmails[0];
-      expect(sent.to).toEqual(["new@example.com"]);
-      expect(sent.subject).toBe("Confirm your email change");
-      expect(sent.html).toContain("confirm?token=change123");
-      expect(sent.text).toContain("confirm?token=change123");
-    });
-  });
-
-  describe("sendTestTemplateEmail", () => {
-    it("should throw error for unknown template", async () => {
-      await expect(
-        service.sendTestTemplateEmail("nonexistent", "test@example.com"),
-      ).rejects.toThrow("Unknown template: nonexistent");
+      expect(sent.html).toContain("Do Something");
     });
   });
 });

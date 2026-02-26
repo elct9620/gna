@@ -1,10 +1,6 @@
 import { Subscriber } from "@/entities/subscriber";
 import { EMAIL_REGEX } from "@/lib/validation";
-import {
-  SubscriberRepository,
-  toSubscriberEntity,
-  type SubscriberRow,
-} from "@/repository/subscriber-repository";
+import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export type SubscribeAction = "created" | "resend" | "none";
 
@@ -16,7 +12,7 @@ export interface SubscribeResult {
 const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export class SubscribeCommand {
-  constructor(private repo: SubscriberRepository) {}
+  constructor(private repo: ISubscriberRepository) {}
 
   async execute(email: string, nickname?: string): Promise<SubscribeResult> {
     if (!email || !EMAIL_REGEX.test(email)) {
@@ -26,8 +22,8 @@ export class SubscribeCommand {
     const existing = await this.repo.findByEmail(email);
 
     if (existing) {
-      if (existing.activatedAt) {
-        return { subscriber: toSubscriberEntity(existing), action: "none" };
+      if (existing.isActivated) {
+        return { subscriber: existing, action: "none" };
       }
 
       return this.resendConfirmation(existing);
@@ -37,7 +33,7 @@ export class SubscribeCommand {
   }
 
   private async resendConfirmation(
-    existing: SubscriberRow,
+    existing: Subscriber,
   ): Promise<SubscribeResult> {
     const newToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
@@ -48,10 +44,10 @@ export class SubscribeCommand {
     );
 
     return {
-      subscriber: toSubscriberEntity({
+      subscriber: new Subscriber({
         ...existing,
         confirmationToken: newToken,
-        confirmationExpiresAt: expiresAt,
+        confirmationExpiresAt: new Date(expiresAt),
       }),
       action: "resend",
     };
@@ -67,7 +63,7 @@ export class SubscribeCommand {
       Date.now() + CONFIRMATION_TTL_MS,
     ).toISOString();
 
-    const inserted = await this.repo.create({
+    const subscriber = await this.repo.create({
       email,
       nickname,
       unsubscribeToken,
@@ -75,6 +71,6 @@ export class SubscribeCommand {
       confirmationExpiresAt,
     });
 
-    return { subscriber: toSubscriberEntity(inserted), action: "created" };
+    return { subscriber, action: "created" };
   }
 }

@@ -1,28 +1,23 @@
 import { Subscriber } from "@/entities/subscriber";
-import {
-  SubscriberRepository,
-  toSubscriberEntity,
-} from "@/repository/subscriber-repository";
+import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export class ConfirmSubscriptionCommand {
-  constructor(private repo: SubscriberRepository) {}
+  constructor(private repo: ISubscriberRepository) {}
 
   async execute(token: string): Promise<Subscriber | null> {
-    const row = await this.repo.findByConfirmationToken(token);
+    const subscriber = await this.repo.findByConfirmationToken(token);
 
-    if (!row) return null;
-    if (row.activatedAt) return null;
-
-    const subscriber = toSubscriberEntity(row);
+    if (!subscriber) return null;
+    if (subscriber.isActivated) return null;
     if (subscriber.isConfirmationExpired) return null;
 
     const now = new Date().toISOString();
 
-    await this.repo.activate(row.id, now);
+    await this.repo.activate(subscriber.id, now);
 
-    return toSubscriberEntity({
-      ...row,
-      activatedAt: now,
+    return new Subscriber({
+      ...subscriber,
+      activatedAt: new Date(now),
       confirmationToken: null,
       confirmationExpiresAt: null,
     });

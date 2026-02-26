@@ -1,28 +1,24 @@
 import { Subscriber } from "@/entities/subscriber";
-import {
-  SubscriberRepository,
-  toSubscriberEntity,
-} from "@/repository/subscriber-repository";
+import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export class ConfirmEmailChangeCommand {
-  constructor(private repo: SubscriberRepository) {}
+  constructor(private repo: ISubscriberRepository) {}
 
   async execute(token: string): Promise<Subscriber | null> {
-    const row = await this.repo.findByConfirmationToken(token);
+    const subscriber = await this.repo.findByConfirmationToken(token);
 
-    if (!row || !row.activatedAt || !row.pendingEmail) return null;
-
-    const subscriber = toSubscriberEntity(row);
+    if (!subscriber || !subscriber.isActivated || !subscriber.pendingEmail)
+      return null;
     if (subscriber.isConfirmationExpired) return null;
 
-    const newEmail = row.pendingEmail;
+    const newEmail = subscriber.pendingEmail;
 
     if (await this.repo.existsByEmail(newEmail)) return null;
 
-    await this.repo.commitEmailChange(row.id, newEmail);
+    await this.repo.commitEmailChange(subscriber.id, newEmail);
 
-    return toSubscriberEntity({
-      ...row,
+    return new Subscriber({
+      ...subscriber,
       email: newEmail,
       pendingEmail: null,
       confirmationToken: null,

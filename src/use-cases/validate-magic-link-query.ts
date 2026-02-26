@@ -1,20 +1,16 @@
 import { Subscriber } from "@/entities/subscriber";
-import {
-  SubscriberRepository,
-  toSubscriberEntity,
-} from "@/repository/subscriber-repository";
+import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export class ValidateMagicLinkQuery {
-  constructor(private repo: SubscriberRepository) {}
+  constructor(private repo: ISubscriberRepository) {}
 
   async execute(token: string): Promise<Subscriber | null> {
-    const row = await this.repo.findByMagicLinkToken(token);
+    const subscriber = await this.repo.findByMagicLinkToken(token);
 
-    if (!row) return null;
+    if (!subscriber) return null;
 
-    const subscriber = toSubscriberEntity(row);
     if (subscriber.isMagicLinkExpired) {
-      await this.repo.clearMagicLinkById(row.id);
+      await this.repo.clearMagicLinkById(subscriber.id);
       return null;
     }
 

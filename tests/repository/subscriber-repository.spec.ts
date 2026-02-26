@@ -1,10 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
-import {
-  SubscriberRepository,
-  toSubscriberEntity,
-} from "@/repository/subscriber-repository";
+import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 
 describe("SubscriberRepository", () => {
@@ -20,7 +17,7 @@ describe("SubscriberRepository", () => {
     email = "test@example.com",
     nickname?: string,
   ) {
-    const row = await repo.create({
+    const subscriber = await repo.create({
       email,
       nickname,
       unsubscribeToken: crypto.randomUUID(),
@@ -29,43 +26,40 @@ describe("SubscriberRepository", () => {
         Date.now() + 24 * 60 * 60 * 1000,
       ).toISOString(),
     });
-    await repo.activate(row.id, new Date().toISOString());
-    return row;
+    await repo.activate(subscriber.id, new Date().toISOString());
+    return subscriber;
   }
 
-  describe("toSubscriberEntity", () => {
-    it("should convert a row to a Subscriber entity", async () => {
-      const row = await repo.create({
+  describe("create", () => {
+    it("should insert and return a Subscriber entity", async () => {
+      const subscriber = await repo.create({
         email: "test@example.com",
-        nickname: "Test",
-        unsubscribeToken: "unsub-token",
-        confirmationToken: "conf-token",
+        nickname: "Nick",
+        unsubscribeToken: "unsub",
+        confirmationToken: "conf",
         confirmationExpiresAt: new Date().toISOString(),
       });
 
-      const entity = toSubscriberEntity(row);
-
-      expect(entity.email).toBe("test@example.com");
-      expect(entity.nickname).toBe("Test");
-      expect(entity.unsubscribeToken).toBe("unsub-token");
-      expect(entity.isPending).toBe(true);
+      expect(subscriber.id).toBeTruthy();
+      expect(subscriber.email).toBe("test@example.com");
+      expect(subscriber.nickname).toBe("Nick");
+      expect(subscriber.isPending).toBe(true);
     });
 
-    it("should handle null nickname", async () => {
-      const row = await repo.create({
+    it("should handle undefined nickname", async () => {
+      const subscriber = await repo.create({
         email: "test@example.com",
-        unsubscribeToken: "unsub-token",
-        confirmationToken: "conf-token",
+        unsubscribeToken: "unsub",
+        confirmationToken: "conf",
         confirmationExpiresAt: new Date().toISOString(),
       });
 
-      const entity = toSubscriberEntity(row);
-      expect(entity.nickname).toBeUndefined();
+      expect(subscriber.nickname).toBeUndefined();
     });
   });
 
   describe("findByEmail", () => {
-    it("should return a row for existing email", async () => {
+    it("should return a Subscriber entity for existing email", async () => {
       await repo.create({
         email: "test@example.com",
         unsubscribeToken: "t1",
@@ -73,19 +67,19 @@ describe("SubscriberRepository", () => {
         confirmationExpiresAt: new Date().toISOString(),
       });
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row).toBeDefined();
-      expect(row!.email).toBe("test@example.com");
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber).toBeDefined();
+      expect(subscriber!.email).toBe("test@example.com");
     });
 
     it("should return undefined for non-existing email", async () => {
-      const row = await repo.findByEmail("nope@example.com");
-      expect(row).toBeUndefined();
+      const subscriber = await repo.findByEmail("nope@example.com");
+      expect(subscriber).toBeUndefined();
     });
   });
 
   describe("findByConfirmationToken", () => {
-    it("should return a row for valid token", async () => {
+    it("should return a Subscriber entity for valid token", async () => {
       await repo.create({
         email: "test@example.com",
         unsubscribeToken: "t1",
@@ -93,19 +87,19 @@ describe("SubscriberRepository", () => {
         confirmationExpiresAt: new Date().toISOString(),
       });
 
-      const row = await repo.findByConfirmationToken("my-token");
-      expect(row).toBeDefined();
-      expect(row!.confirmationToken).toBe("my-token");
+      const subscriber = await repo.findByConfirmationToken("my-token");
+      expect(subscriber).toBeDefined();
+      expect(subscriber!.confirmationToken).toBe("my-token");
     });
 
     it("should return undefined for invalid token", async () => {
-      const row = await repo.findByConfirmationToken("invalid");
-      expect(row).toBeUndefined();
+      const subscriber = await repo.findByConfirmationToken("invalid");
+      expect(subscriber).toBeUndefined();
     });
   });
 
   describe("findByMagicLinkToken", () => {
-    it("should return a row for valid token", async () => {
+    it("should return a Subscriber entity for valid token", async () => {
       const created = await createActiveSubscriber();
       await repo.updateMagicLink(
         created.id,
@@ -113,14 +107,14 @@ describe("SubscriberRepository", () => {
         new Date().toISOString(),
       );
 
-      const row = await repo.findByMagicLinkToken("magic-token");
-      expect(row).toBeDefined();
-      expect(row!.magicLinkToken).toBe("magic-token");
+      const subscriber = await repo.findByMagicLinkToken("magic-token");
+      expect(subscriber).toBeDefined();
+      expect(subscriber!.magicLinkToken).toBe("magic-token");
     });
 
     it("should return undefined for invalid token", async () => {
-      const row = await repo.findByMagicLinkToken("invalid");
-      expect(row).toBeUndefined();
+      const subscriber = await repo.findByMagicLinkToken("invalid");
+      expect(subscriber).toBeUndefined();
     });
   });
 
@@ -167,33 +161,6 @@ describe("SubscriberRepository", () => {
     });
   });
 
-  describe("create", () => {
-    it("should insert and return a row", async () => {
-      const row = await repo.create({
-        email: "test@example.com",
-        nickname: "Nick",
-        unsubscribeToken: "unsub",
-        confirmationToken: "conf",
-        confirmationExpiresAt: new Date().toISOString(),
-      });
-
-      expect(row.id).toBeTruthy();
-      expect(row.email).toBe("test@example.com");
-      expect(row.nickname).toBe("Nick");
-    });
-
-    it("should set nickname to null when omitted", async () => {
-      const row = await repo.create({
-        email: "test@example.com",
-        unsubscribeToken: "unsub",
-        confirmationToken: "conf",
-        confirmationExpiresAt: new Date().toISOString(),
-      });
-
-      expect(row.nickname).toBeNull();
-    });
-  });
-
   describe("updateConfirmationToken", () => {
     it("should update confirmation fields", async () => {
       await repo.create({
@@ -210,9 +177,8 @@ describe("SubscriberRepository", () => {
         newExpiry,
       );
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.confirmationToken).toBe("new-token");
-      expect(row!.confirmationExpiresAt).toBe(newExpiry);
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.confirmationToken).toBe("new-token");
     });
   });
 
@@ -228,10 +194,10 @@ describe("SubscriberRepository", () => {
       const now = new Date().toISOString();
       await repo.activate(created.id, now);
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.activatedAt).toBe(now);
-      expect(row!.confirmationToken).toBeNull();
-      expect(row!.confirmationExpiresAt).toBeNull();
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.isActivated).toBe(true);
+      expect(subscriber!.confirmationToken).toBeNull();
+      expect(subscriber!.confirmationExpiresAt).toBeNull();
     });
   });
 
@@ -242,9 +208,8 @@ describe("SubscriberRepository", () => {
       const expiresAt = new Date().toISOString();
       await repo.updateMagicLink(created.id, "magic", expiresAt);
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.magicLinkToken).toBe("magic");
-      expect(row!.magicLinkExpiresAt).toBe(expiresAt);
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.magicLinkToken).toBe("magic");
     });
   });
 
@@ -255,9 +220,9 @@ describe("SubscriberRepository", () => {
 
       await repo.clearMagicLinkById(created.id);
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.magicLinkToken).toBeNull();
-      expect(row!.magicLinkExpiresAt).toBeNull();
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.magicLinkToken).toBeNull();
+      expect(subscriber!.magicLinkExpiresAt).toBeNull();
     });
   });
 
@@ -268,8 +233,8 @@ describe("SubscriberRepository", () => {
 
       await repo.clearMagicLinkByToken("magic");
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.magicLinkToken).toBeNull();
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.magicLinkToken).toBeNull();
     });
   });
 
@@ -286,8 +251,8 @@ describe("SubscriberRepository", () => {
       const result = await repo.updateNickname("test@example.com", "New");
       expect(result).toBe(true);
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.nickname).toBe("New");
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.nickname).toBe("New");
     });
 
     it("should return false for non-existent email", async () => {
@@ -308,10 +273,9 @@ describe("SubscriberRepository", () => {
         expiresAt,
       );
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row!.pendingEmail).toBe("new@example.com");
-      expect(row!.confirmationToken).toBe("token");
-      expect(row!.confirmationExpiresAt).toBe(expiresAt);
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber!.pendingEmail).toBe("new@example.com");
+      expect(subscriber!.confirmationToken).toBe("token");
     });
   });
 
@@ -350,8 +314,8 @@ describe("SubscriberRepository", () => {
       const result = await repo.deleteByEmail("test@example.com");
       expect(result).toBe(true);
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row).toBeUndefined();
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber).toBeUndefined();
     });
 
     it("should return false for non-existent email", async () => {
@@ -371,8 +335,8 @@ describe("SubscriberRepository", () => {
 
       await repo.deleteByUnsubscribeToken("unsub-token");
 
-      const row = await repo.findByEmail("test@example.com");
-      expect(row).toBeUndefined();
+      const subscriber = await repo.findByEmail("test@example.com");
+      expect(subscriber).toBeUndefined();
     });
   });
 });

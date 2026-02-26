@@ -15,6 +15,10 @@ import { UpdateProfileCommand } from "./use-cases/update-profile-command";
 import { UnsubscribeCommand } from "./use-cases/unsubscribe-command";
 import { RemoveSubscriberCommand } from "./use-cases/remove-subscriber-command";
 import { ListSubscribersQuery } from "./use-cases/list-subscribers-query";
+import { SendConfirmationEmailCommand } from "./use-cases/send-confirmation-email-command";
+import { SendMagicLinkEmailCommand } from "./use-cases/send-magic-link-email-command";
+import { SendEmailChangeConfirmationCommand } from "./use-cases/send-email-change-confirmation-command";
+import { SendTestEmailCommand } from "./use-cases/send-test-email-command";
 
 export const DATABASE = Symbol("DATABASE");
 export const AWS_CLIENT = Symbol("AWS_CLIENT");
@@ -63,7 +67,6 @@ container.register(NotificationService, {
     return new NotificationService(
       c.resolve(EmailRenderer),
       c.resolve(EmailSender),
-      c.resolve(BASE_URL) as string,
     );
   },
 });
@@ -129,6 +132,42 @@ container.register(ListSubscribersQuery, {
   useFactory: instanceCachingFactory((c) => {
     return new ListSubscribersQuery(c.resolve(SubscriberRepository));
   }),
+});
+
+container.register(SendConfirmationEmailCommand, {
+  useFactory: (c) => {
+    return new SendConfirmationEmailCommand(
+      c.resolve(NotificationService),
+      c.resolve(BASE_URL) as string,
+    );
+  },
+});
+
+container.register(SendMagicLinkEmailCommand, {
+  useFactory: (c) => {
+    return new SendMagicLinkEmailCommand(
+      c.resolve(NotificationService),
+      c.resolve(BASE_URL) as string,
+    );
+  },
+});
+
+container.register(SendEmailChangeConfirmationCommand, {
+  useFactory: (c) => {
+    return new SendEmailChangeConfirmationCommand(
+      c.resolve(NotificationService),
+      c.resolve(BASE_URL) as string,
+    );
+  },
+});
+
+container.register(SendTestEmailCommand, {
+  useFactory: (c) => {
+    return new SendTestEmailCommand(
+      c.resolve(NotificationService),
+      c.resolve(BASE_URL) as string,
+    );
+  },
 });
 
 container.registerSingleton(EmailRenderer);

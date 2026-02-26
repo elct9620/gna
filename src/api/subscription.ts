@@ -1,13 +1,12 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { NotificationService } from "@/services/notification-service";
+import { SendConfirmationEmailCommand } from "@/use-cases/send-confirmation-email-command";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { UnsubscribeCommand } from "@/use-cases/unsubscribe-command";
 
 const app = new Hono()
   .post("/subscribe", async (c) => {
     const command = container.resolve(SubscribeCommand);
-    const notification = container.resolve(NotificationService);
     const body = await c.req.json<{ email?: string; nickname?: string }>();
 
     let result;
@@ -18,7 +17,8 @@ const app = new Hono()
     }
 
     if (result.action === "created" || result.action === "resend") {
-      await notification.sendConfirmationEmail(
+      const sendConfirmation = container.resolve(SendConfirmationEmailCommand);
+      await sendConfirmation.execute(
         result.subscriber.email,
         result.subscriber.confirmationToken!,
       );
