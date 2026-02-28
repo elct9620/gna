@@ -95,20 +95,24 @@ describe("Send Email Commands", () => {
       expect(sent.content.actionUrl).toContain("test-token-example");
     });
 
-    it("should throw error for unknown template", async () => {
+    it("should return error for unknown template", async () => {
       const command = new SendTestEmailCommand(mockDelivery, config);
 
-      await expect(
-        command.execute("nonexistent", "test@example.com"),
-      ).rejects.toThrow("Unknown template: nonexistent");
+      const result = await command.execute("nonexistent", "test@example.com");
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe("unknown_template");
+      }
     });
 
-    it("should throw error for invalid email address", async () => {
+    it("should return error for invalid email address", async () => {
       const command = new SendTestEmailCommand(mockDelivery, config);
 
-      await expect(
-        command.execute("confirmation", "not-an-email"),
-      ).rejects.toThrow("Invalid email address");
+      const result = await command.execute("confirmation", "not-an-email");
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe("invalid_email");
+      }
     });
   });
 });

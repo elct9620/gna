@@ -27,8 +27,10 @@ describe("ConfirmSubscriptionCommand", () => {
   });
 
   it("should return null if token already consumed", async () => {
-    const { subscriber } = await subscribe.execute("test@example.com");
-    const token = subscriber.confirmationToken!;
+    const result = await subscribe.execute("test@example.com");
+    expect(result.action).not.toBe("invalid_email");
+    if (result.action === "invalid_email") return;
+    const token = result.subscriber.confirmationToken!;
     await confirmSubscription.execute(token);
 
     expect(await confirmSubscription.execute(token)).toBeNull();
@@ -36,8 +38,10 @@ describe("ConfirmSubscriptionCommand", () => {
 
   it("should return null for expired confirmation token", async () => {
     const db = drizzle(env.DB);
-    const { subscriber } = await subscribe.execute("test@example.com");
-    const token = subscriber.confirmationToken!;
+    const result = await subscribe.execute("test@example.com");
+    expect(result.action).not.toBe("invalid_email");
+    if (result.action === "invalid_email") return;
+    const token = result.subscriber.confirmationToken!;
 
     await db
       .update(subscribers)

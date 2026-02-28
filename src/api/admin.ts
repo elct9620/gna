@@ -41,13 +41,23 @@ const app = new Hono()
 
     const command = container.resolve(SendTestEmailCommand);
 
+    let result;
     try {
-      await command.execute(template, to);
-    } catch (e) {
-      if (e instanceof Error && e.message === "Invalid email address") {
-        return c.json({ error: "Invalid email address" }, 400);
-      }
+      result = await command.execute(template, to);
+    } catch {
       return c.json({ error: "Email service unavailable" }, 503);
+    }
+
+    if (!result.success) {
+      return c.json(
+        {
+          error:
+            result.error === "invalid_email"
+              ? "Invalid email address"
+              : "Invalid template name",
+        },
+        400,
+      );
     }
 
     return c.json({ status: "sent" });

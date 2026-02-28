@@ -7,7 +7,10 @@ export async function createActiveSubscriber(
   email: string,
   nickname?: string,
 ) {
-  const { subscriber } = await subscribe.execute(email, nickname);
-  await confirmSubscription.execute(subscriber.confirmationToken!);
-  return subscriber;
+  const result = await subscribe.execute(email, nickname);
+  if (result.action === "invalid_email") {
+    throw new Error("Test setup failed: invalid email");
+  }
+  await confirmSubscription.execute(result.subscriber.confirmationToken!);
+  return result.subscriber;
 }

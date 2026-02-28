@@ -10,7 +10,8 @@ export type SubscribeResult =
       subscriber: Subscriber;
       confirmationToken: string;
     }
-  | { action: "none"; subscriber: Subscriber };
+  | { action: "none"; subscriber: Subscriber }
+  | { action: "invalid_email" };
 
 export class SubscribeCommand {
   constructor(
@@ -20,7 +21,7 @@ export class SubscribeCommand {
 
   async execute(email: string, nickname?: string): Promise<SubscribeResult> {
     if (!email || !EMAIL_REGEX.test(email)) {
-      throw new Error("Invalid email address");
+      return { action: "invalid_email" };
     }
 
     const existing = await this.repo.findByEmail(email);

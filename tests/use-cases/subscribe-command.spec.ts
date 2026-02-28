@@ -26,6 +26,16 @@ describe("SubscribeCommand", () => {
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
   });
 
+  it("should return invalid_email for invalid email address", async () => {
+    const result = await subscribe.execute("not-an-email");
+    expect(result.action).toBe("invalid_email");
+  });
+
+  it("should return invalid_email for empty email", async () => {
+    const result = await subscribe.execute("");
+    expect(result.action).toBe("invalid_email");
+  });
+
   it("should return none for already active subscriber", async () => {
     await createActiveSubscriber(
       subscribe,

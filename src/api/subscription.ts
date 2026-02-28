@@ -9,10 +9,9 @@ const app = new Hono()
     const command = container.resolve(SubscribeCommand);
     const body = await c.req.json<{ email?: string; nickname?: string }>();
 
-    let result;
-    try {
-      result = await command.execute(body.email ?? "", body.nickname);
-    } catch {
+    const result = await command.execute(body.email ?? "", body.nickname);
+
+    if (result.action === "invalid_email") {
       return c.json({ error: "Invalid email address" }, 400);
     }
 
