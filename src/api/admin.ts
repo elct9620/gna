@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { EMAIL_REGEX } from "@/lib/validation";
 import { VALID_TEMPLATE_NAMES } from "@/emails/templates";
 import { SendTestEmailCommand } from "@/use-cases/send-test-email-command";
 import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
@@ -40,15 +39,14 @@ const app = new Hono()
       return c.json({ error: "Invalid template name" }, 400);
     }
 
-    if (!EMAIL_REGEX.test(to)) {
-      return c.json({ error: "Invalid email address" }, 400);
-    }
-
     const command = container.resolve(SendTestEmailCommand);
 
     try {
       await command.execute(template, to);
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && e.message === "Invalid email address") {
+        return c.json({ error: "Invalid email address" }, 400);
+      }
       return c.json({ error: "Email service unavailable" }, 503);
     }
 

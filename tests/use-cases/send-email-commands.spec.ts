@@ -97,5 +97,13 @@ describe("Send Email Commands", () => {
         command.execute("nonexistent", "test@example.com"),
       ).rejects.toThrow("Unknown template: nonexistent");
     });
+
+    it("should throw error for invalid email address", async () => {
+      const command = new SendTestEmailCommand(mockDelivery, baseUrl);
+
+      await expect(
+        command.execute("confirmation", "not-an-email"),
+      ).rejects.toThrow("Invalid email address");
+    });
   });
 });
