@@ -1,35 +1,45 @@
-import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { container } from "@/container";
 import { EmailSender } from "@/services/email-sender";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { Logger } from "@/services/logger";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
 
-const authBypass = { ...env, DISABLE_AUTH: "true" };
+function registerAuth(authConfig: {
+  teamName?: string;
+  aud?: string;
+  disableAuth: boolean;
+}) {
+  container.register(AdminAuthService, {
+    useValue: new AdminAuthService(container.resolve(Logger), {
+      teamName: authConfig.teamName,
+      aud: authConfig.aud,
+      disableAuth: authConfig.disableAuth,
+    }),
+  });
+}
 
 describe("POST /admin/api/test-email/template", () => {
   let mockSender: MockEmailSender;
 
   beforeEach(() => {
     mockSender = new MockEmailSender();
+    registerAuth({ disableAuth: true });
     container.register(EmailSender, {
       useValue: mockSender as unknown as EmailSender,
     });
   });
 
   it("should send test confirmation email", async () => {
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "confirmation",
-          to: "test@example.com",
-        }),
-      },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "confirmation",
+        to: "test@example.com",
+      }),
+    });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "sent" });
@@ -41,18 +51,14 @@ describe("POST /admin/api/test-email/template", () => {
   });
 
   it("should send test magic_link email", async () => {
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "magic_link",
-          to: "test@example.com",
-        }),
-      },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "magic_link",
+        to: "test@example.com",
+      }),
+    });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "sent" });
@@ -63,18 +69,14 @@ describe("POST /admin/api/test-email/template", () => {
   });
 
   it("should send test email_change email", async () => {
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "email_change",
-          to: "test@example.com",
-        }),
-      },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "email_change",
+        to: "test@example.com",
+      }),
+    });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "sent" });
@@ -85,18 +87,14 @@ describe("POST /admin/api/test-email/template", () => {
   });
 
   it("should return 400 for invalid template name", async () => {
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "nonexistent",
-          to: "test@example.com",
-        }),
-      },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "nonexistent",
+        to: "test@example.com",
+      }),
+    });
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid template name" });
@@ -104,18 +102,14 @@ describe("POST /admin/api/test-email/template", () => {
   });
 
   it("should return 400 for invalid email address", async () => {
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "confirmation",
-          to: "not-an-email",
-        }),
-      },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "confirmation",
+        to: "not-an-email",
+      }),
+    });
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid email address" });
@@ -127,43 +121,34 @@ describe("POST /admin/api/test-email/template", () => {
       throw new Error("SES API error");
     };
 
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "confirmation",
-          to: "test@example.com",
-        }),
-      },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "confirmation",
+        to: "test@example.com",
+      }),
+    });
 
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: "Email service unavailable" });
   });
 
   it("should require admin auth", async () => {
-    const authEnv = {
-      ...env,
-      DISABLE_AUTH: "",
-      CF_ACCESS_TEAM_NAME: "myteam",
-      CF_ACCESS_AUD: "test-aud",
-    };
+    registerAuth({
+      disableAuth: false,
+      teamName: "myteam",
+      aud: "test-aud",
+    });
 
-    const res = await app.request(
-      "/admin/api/test-email/template",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          template: "confirmation",
-          to: "test@example.com",
-        }),
-      },
-      authEnv,
-    );
+    const res = await app.request("/admin/api/test-email/template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template: "confirmation",
+        to: "test@example.com",
+      }),
+    });
 
     expect(res.status).toBe(401);
   });

@@ -1,28 +1,23 @@
 import { createRemoteJWKSet, jwtVerify, errors } from "jose";
+import type { AppConfig } from "@/config";
 import { Logger } from "./logger";
-
-export interface AdminAuthConfig {
-  teamName: string | undefined;
-  aud: string | undefined;
-  disableAuth: boolean;
-}
 
 type AuthResult =
   | { success: true }
   | { success: false; error: string; status: 401 | 403 | 500 | 503 };
 
 export class AdminAuthService {
-  constructor(private logger: Logger) {}
+  constructor(
+    private logger: Logger,
+    private authConfig: AppConfig["auth"],
+  ) {}
 
-  async verify(
-    config: AdminAuthConfig,
-    token: string | undefined,
-  ): Promise<AuthResult> {
-    if (config.disableAuth) {
+  async verify(token: string | undefined): Promise<AuthResult> {
+    if (this.authConfig.disableAuth) {
       return { success: true };
     }
 
-    const { teamName, aud } = config;
+    const { teamName, aud } = this.authConfig;
 
     if (!teamName || !aud) {
       this.logger.error(

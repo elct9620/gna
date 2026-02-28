@@ -2,6 +2,7 @@ import { container, instanceCachingFactory } from "tsyringe";
 import { drizzle } from "drizzle-orm/d1";
 import { AwsClient } from "aws4fetch";
 import { env } from "cloudflare:workers";
+import { APP_CONFIG, type AppConfig } from "./config";
 import { SubscriberRepository } from "./repository/subscriber-repository";
 import { EmailRenderer } from "./services/email-renderer";
 import { EmailSender } from "./services/email-sender";
@@ -23,9 +24,7 @@ import { AdminAuthService } from "./services/admin-auth-service";
 
 export const DATABASE = Symbol("DATABASE");
 export const AWS_CLIENT = Symbol("AWS_CLIENT");
-export const AWS_REGION = Symbol("AWS_REGION");
-export const FROM_ADDRESS = Symbol("FROM_ADDRESS");
-export const BASE_URL = Symbol("BASE_URL");
+export { APP_CONFIG };
 
 container.register(DATABASE, {
   useFactory: instanceCachingFactory(() => drizzle(env.DB)),
@@ -41,24 +40,28 @@ container.register(AWS_CLIENT, {
   ),
 });
 
-container.register(AWS_REGION, {
-  useFactory: () => env.AWS_REGION,
-});
-
-container.register(FROM_ADDRESS, {
-  useFactory: () => env.FROM_ADDRESS,
-});
-
-container.register(BASE_URL, {
-  useFactory: () => env.BASE_URL,
+container.register(APP_CONFIG, {
+  useFactory: instanceCachingFactory(
+    (): AppConfig => ({
+      baseUrl: env.BASE_URL,
+      confirmationTtlMs: 24 * 60 * 60 * 1000,
+      magicLinkTtlMs: 15 * 60 * 1000,
+      awsRegion: env.AWS_REGION,
+      fromAddress: env.FROM_ADDRESS,
+      auth: {
+        teamName: env.CF_ACCESS_TEAM_NAME,
+        aud: env.CF_ACCESS_AUD,
+        disableAuth: env.DISABLE_AUTH === "true",
+      },
+    }),
+  ),
 });
 
 container.register(EmailSender, {
   useFactory: instanceCachingFactory((c) => {
     return new EmailSender(
       c.resolve(AWS_CLIENT),
-      c.resolve(AWS_REGION) as string,
-      c.resolve(FROM_ADDRESS) as string,
+      c.resolve(APP_CONFIG) as AppConfig,
     );
   }),
 });
@@ -80,7 +83,10 @@ container.register(SubscriberRepository, {
 
 container.register(SubscribeCommand, {
   useFactory: instanceCachingFactory((c) => {
-    return new SubscribeCommand(c.resolve(SubscriberRepository));
+    return new SubscribeCommand(
+      c.resolve(SubscriberRepository),
+      c.resolve(APP_CONFIG) as AppConfig,
+    );
   }),
 });
 
@@ -107,7 +113,10 @@ container.register(ConfirmCommand, {
 
 container.register(RequestMagicLinkCommand, {
   useFactory: instanceCachingFactory((c) => {
-    return new RequestMagicLinkCommand(c.resolve(SubscriberRepository));
+    return new RequestMagicLinkCommand(
+      c.resolve(SubscriberRepository),
+      c.resolve(APP_CONFIG) as AppConfig,
+    );
   }),
 });
 
@@ -122,6 +131,7 @@ container.register(UpdateProfileCommand, {
     return new UpdateProfileCommand(
       c.resolve(SubscriberRepository),
       c.resolve(ValidateMagicLinkCommand),
+      c.resolve(APP_CONFIG) as AppConfig,
     );
   }),
 });
@@ -148,7 +158,7 @@ container.register(SendTemplateEmailCommand, {
   useFactory: (c) => {
     return new SendTemplateEmailCommand(
       c.resolve(NotificationService),
-      c.resolve(BASE_URL) as string,
+      c.resolve(APP_CONFIG) as AppConfig,
     );
   },
 });
@@ -157,7 +167,7 @@ container.register(SendTestEmailCommand, {
   useFactory: (c) => {
     return new SendTestEmailCommand(
       c.resolve(NotificationService),
-      c.resolve(BASE_URL) as string,
+      c.resolve(APP_CONFIG) as AppConfig,
     );
   },
 });
@@ -167,7 +177,8 @@ container.registerSingleton(Logger);
 
 container.register(AdminAuthService, {
   useFactory: instanceCachingFactory((c) => {
-    return new AdminAuthService(c.resolve(Logger));
+    const config = c.resolve(APP_CONFIG) as AppConfig;
+    return new AdminAuthService(c.resolve(Logger), config.auth);
   }),
 });
 

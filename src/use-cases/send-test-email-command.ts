@@ -1,11 +1,12 @@
 import type { IEmailDelivery } from "./ports/email-delivery";
+import type { IAppConfig } from "./ports/config";
 import { EMAIL_TEMPLATES } from "@/emails/templates";
 import { EMAIL_REGEX } from "@/lib/validation";
 
 export class SendTestEmailCommand {
   constructor(
     private emailDelivery: IEmailDelivery,
-    private baseUrl: string,
+    private config: IAppConfig,
   ) {}
 
   async execute(template: string, to: string): Promise<void> {
@@ -13,17 +14,17 @@ export class SendTestEmailCommand {
       throw new Error("Invalid email address");
     }
 
-    const config = EMAIL_TEMPLATES[template];
-    if (!config) {
+    const tmpl = EMAIL_TEMPLATES[template];
+    if (!tmpl) {
       throw new Error(`Unknown template: ${template}`);
     }
 
-    await this.emailDelivery.send(to, `[TEST] ${config.subject}`, {
-      previewText: config.previewText,
-      heading: config.heading,
-      bodyText: config.bodyText,
-      actionUrl: `${this.baseUrl}${config.actionPath}?token=test-token-example`,
-      actionText: config.actionText,
+    await this.emailDelivery.send(to, `[TEST] ${tmpl.subject}`, {
+      previewText: tmpl.previewText,
+      heading: tmpl.heading,
+      bodyText: tmpl.bodyText,
+      actionUrl: `${this.config.baseUrl}${tmpl.actionPath}?token=test-token-example`,
+      actionText: tmpl.actionText,
     });
   }
 }

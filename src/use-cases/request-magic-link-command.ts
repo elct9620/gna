@@ -1,8 +1,11 @@
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
-import { MAGIC_LINK_TTL_MS } from "./constants";
+import type { IAppConfig } from "./ports/config";
 
 export class RequestMagicLinkCommand {
-  constructor(private repo: ISubscriberRepository) {}
+  constructor(
+    private repo: ISubscriberRepository,
+    private config: IAppConfig,
+  ) {}
 
   async execute(email: string): Promise<string | null> {
     const subscriber = await this.repo.findByEmail(email);
@@ -10,7 +13,9 @@ export class RequestMagicLinkCommand {
     if (!subscriber || !subscriber.isActivated) return null;
 
     const token = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + MAGIC_LINK_TTL_MS).toISOString();
+    const expiresAt = new Date(
+      Date.now() + this.config.magicLinkTtlMs,
+    ).toISOString();
 
     await this.repo.updateMagicLink(subscriber.id, token, expiresAt);
 

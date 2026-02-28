@@ -1,7 +1,7 @@
 import type { Subscriber } from "@/entities/subscriber";
 import { EMAIL_REGEX } from "@/lib/validation";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
-import { CONFIRMATION_TTL_MS } from "./constants";
+import type { IAppConfig } from "./ports/config";
 
 export type SubscribeAction = "created" | "resend" | "none";
 
@@ -11,7 +11,10 @@ export interface SubscribeResult {
 }
 
 export class SubscribeCommand {
-  constructor(private repo: ISubscriberRepository) {}
+  constructor(
+    private repo: ISubscriberRepository,
+    private config: IAppConfig,
+  ) {}
 
   async execute(email: string, nickname?: string): Promise<SubscribeResult> {
     if (!email || !EMAIL_REGEX.test(email)) {
@@ -35,7 +38,9 @@ export class SubscribeCommand {
     existing: Subscriber,
   ): Promise<SubscribeResult> {
     const newToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+    const expiresAt = new Date(
+      Date.now() + this.config.confirmationTtlMs,
+    ).toISOString();
     await this.repo.updateConfirmationToken(
       existing.email,
       newToken,
@@ -58,7 +63,7 @@ export class SubscribeCommand {
     const unsubscribeToken = crypto.randomUUID();
     const confirmationToken = crypto.randomUUID();
     const confirmationExpiresAt = new Date(
-      Date.now() + CONFIRMATION_TTL_MS,
+      Date.now() + this.config.confirmationTtlMs,
     ).toISOString();
 
     const subscriber = await this.repo.create({

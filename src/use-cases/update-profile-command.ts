@@ -1,7 +1,7 @@
 import type { Subscriber } from "@/entities/subscriber";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IMagicLinkValidator } from "./ports/magic-link-validator";
-import { CONFIRMATION_TTL_MS } from "./constants";
+import type { IAppConfig } from "./ports/config";
 
 export interface UpdateProfileResult {
   error?: "invalid_token" | "email_taken";
@@ -12,6 +12,7 @@ export class UpdateProfileCommand {
   constructor(
     private repo: ISubscriberRepository,
     private validateMagicLink: IMagicLinkValidator,
+    private config: IAppConfig,
   ) {}
 
   async execute(
@@ -54,7 +55,9 @@ export class UpdateProfileCommand {
     if (!subscriber.isActivated) return undefined;
 
     const changeToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+    const expiresAt = new Date(
+      Date.now() + this.config.confirmationTtlMs,
+    ).toISOString();
 
     await this.repo.updatePendingEmail(
       subscriber.id,

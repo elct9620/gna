@@ -1,10 +1,11 @@
 import type { IEmailDelivery } from "./ports/email-delivery";
+import type { IAppConfig } from "./ports/config";
 import { EMAIL_TEMPLATES } from "@/emails/templates";
 
 export class SendTemplateEmailCommand {
   constructor(
     private emailDelivery: IEmailDelivery,
-    private baseUrl: string,
+    private config: IAppConfig,
   ) {}
 
   async execute(template: string, email: string, token: string): Promise<void> {
@@ -14,7 +15,7 @@ export class SendTemplateEmailCommand {
       previewText: t.previewText,
       heading: t.heading,
       bodyText: t.bodyText,
-      actionUrl: `${this.baseUrl}${t.actionPath}?token=${token}`,
+      actionUrl: `${this.config.baseUrl}${t.actionPath}?token=${token}`,
       actionText: t.actionText,
     });
   }

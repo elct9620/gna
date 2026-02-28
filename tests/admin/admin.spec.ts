@@ -3,53 +3,70 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/email-sender";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { Logger } from "@/services/logger";
 import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
 
-const authBypass = { ...env, DISABLE_AUTH: "true" };
+function registerAuth(authConfig: {
+  teamName?: string;
+  aud?: string;
+  disableAuth: boolean;
+}) {
+  container.register(AdminAuthService, {
+    useValue: new AdminAuthService(container.resolve(Logger), {
+      teamName: authConfig.teamName,
+      aud: authConfig.aud,
+      disableAuth: authConfig.disableAuth,
+    }),
+  });
+}
 
 describe("GET /admin", () => {
   describe("when DISABLE_AUTH is true", () => {
+    beforeEach(() => {
+      registerAuth({ disableAuth: true });
+    });
+
     it("should return 200", async () => {
-      const res = await app.request("/admin", {}, authBypass);
+      const res = await app.request("/admin");
       expect(res.status).toBe(200);
     });
 
     it("should render Admin Dashboard", async () => {
-      const res = await app.request("/admin", {}, authBypass);
+      const res = await app.request("/admin");
       const html = await res.text();
       expect(html).toContain("Admin Dashboard");
     });
 
     it("should have a page title", async () => {
-      const res = await app.request("/admin", {}, authBypass);
+      const res = await app.request("/admin");
       const html = await res.text();
       expect(html).toContain("<title>Admin Dashboard - Gna</title>");
     });
   });
 
   describe("when auth is enabled", () => {
-    const authEnv = {
-      ...env,
-      DISABLE_AUTH: "",
-      CF_ACCESS_TEAM_NAME: "myteam",
-      CF_ACCESS_AUD: "test-aud",
-    };
+    beforeEach(() => {
+      registerAuth({
+        disableAuth: false,
+        teamName: "myteam",
+        aud: "test-aud",
+      });
+    });
 
     it("should return 401 when JWT header is missing", async () => {
-      const res = await app.request("/admin", {}, authEnv);
+      const res = await app.request("/admin");
       expect(res.status).toBe(401);
       expect(await res.json()).toEqual({ error: "Authentication required" });
     });
 
     it("should return 403 when JWT is invalid", async () => {
-      const res = await app.request(
-        "/admin",
-        { headers: { "Cf-Access-Jwt-Assertion": "invalid-token" } },
-        authEnv,
-      );
+      const res = await app.request("/admin", {
+        headers: { "Cf-Access-Jwt-Assertion": "invalid-token" },
+      });
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: "Invalid token" });
     });
@@ -57,31 +74,21 @@ describe("GET /admin", () => {
 
   describe("when auth config is missing", () => {
     it("should return 500 when CF_ACCESS_TEAM_NAME is not set", async () => {
-      const res = await app.request(
-        "/admin",
-        { headers: { "Cf-Access-Jwt-Assertion": "some-token" } },
-        {
-          ...env,
-          DISABLE_AUTH: "",
-          CF_ACCESS_TEAM_NAME: "",
-          CF_ACCESS_AUD: "test-aud",
-        },
-      );
+      registerAuth({ disableAuth: false, teamName: "", aud: "test-aud" });
+
+      const res = await app.request("/admin", {
+        headers: { "Cf-Access-Jwt-Assertion": "some-token" },
+      });
       expect(res.status).toBe(500);
       expect(await res.json()).toEqual({ error: "Server misconfiguration" });
     });
 
     it("should return 500 when CF_ACCESS_AUD is not set", async () => {
-      const res = await app.request(
-        "/admin",
-        { headers: { "Cf-Access-Jwt-Assertion": "some-token" } },
-        {
-          ...env,
-          DISABLE_AUTH: "",
-          CF_ACCESS_TEAM_NAME: "myteam",
-          CF_ACCESS_AUD: "",
-        },
-      );
+      registerAuth({ disableAuth: false, teamName: "myteam", aud: "" });
+
+      const res = await app.request("/admin", {
+        headers: { "Cf-Access-Jwt-Assertion": "some-token" },
+      });
       expect(res.status).toBe(500);
       expect(await res.json()).toEqual({ error: "Server misconfiguration" });
     });
@@ -93,29 +100,26 @@ describe("GET /admin/api/subscribers", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
 
+    registerAuth({ disableAuth: true });
     container.register(EmailSender, {
       useValue: new MockEmailSender() as unknown as EmailSender,
     });
   });
 
   it("should return empty subscribers list", async () => {
-    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    const res = await app.request("/admin/api/subscribers");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ subscribers: [] });
   });
 
   it("should return subscribers after subscribing", async () => {
-    await app.request(
-      "/api/subscribe",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "test@example.com", nickname: "Test" }),
-      },
-      authBypass,
-    );
+    await app.request("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "test@example.com", nickname: "Test" }),
+    });
 
-    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    const res = await app.request("/admin/api/subscribers");
     expect(res.status).toBe(200);
 
     const data = await res.json<{
@@ -132,20 +136,16 @@ describe("GET /admin/api/subscribers", () => {
   });
 
   it("should return status 'Pending' for unconfirmed subscriber", async () => {
-    await app.request(
-      "/api/subscribe",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: "pending@example.com",
-          nickname: "Pending",
-        }),
-      },
-      authBypass,
-    );
+    await app.request("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "pending@example.com",
+        nickname: "Pending",
+      }),
+    });
 
-    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    const res = await app.request("/admin/api/subscribers");
     const data = await res.json<{
       subscribers: Array<{ email: string; status: string }>;
     }>();
@@ -157,27 +157,23 @@ describe("GET /admin/api/subscribers", () => {
   });
 
   it("should return status 'Activated' for confirmed subscriber", async () => {
-    await app.request(
-      "/api/subscribe",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: "active@example.com",
-          nickname: "Active",
-        }),
-      },
-      authBypass,
-    );
+    await app.request("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: "active@example.com",
+        nickname: "Active",
+      }),
+    });
 
     const query = container.resolve(ListSubscribersQuery);
     const list = await query.execute();
     const sub = list.find((s) => s.email === "active@example.com");
     const confirmToken = sub!.confirmationToken!;
 
-    await app.request(`/confirm?token=${confirmToken}`, {}, authBypass);
+    await app.request(`/confirm?token=${confirmToken}`);
 
-    const res = await app.request("/admin/api/subscribers", {}, authBypass);
+    const res = await app.request("/admin/api/subscribers");
     const data = await res.json<{
       subscribers: Array<{ email: string; status: string }>;
     }>();
@@ -194,31 +190,26 @@ describe("DELETE /admin/api/subscribers/:email", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
 
+    registerAuth({ disableAuth: true });
     container.register(EmailSender, {
       useValue: new MockEmailSender() as unknown as EmailSender,
     });
   });
 
   it("should remove an existing subscriber", async () => {
-    await app.request(
-      "/api/subscribe",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "remove@example.com" }),
-      },
-      authBypass,
-    );
+    await app.request("/api/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "remove@example.com" }),
+    });
 
-    const res = await app.request(
-      "/admin/api/subscribers/remove@example.com",
-      { method: "DELETE" },
-      authBypass,
-    );
+    const res = await app.request("/admin/api/subscribers/remove@example.com", {
+      method: "DELETE",
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ message: "Subscriber removed" });
 
-    const listRes = await app.request("/admin/api/subscribers", {}, authBypass);
+    const listRes = await app.request("/admin/api/subscribers");
     const data = await listRes.json<{
       subscribers: Array<{ email: string }>;
     }>();
@@ -231,25 +222,21 @@ describe("DELETE /admin/api/subscribers/:email", () => {
     const res = await app.request(
       "/admin/api/subscribers/nonexistent@example.com",
       { method: "DELETE" },
-      authBypass,
     );
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "Subscriber not found" });
   });
 
   it("should require admin auth", async () => {
-    const authEnv = {
-      ...env,
-      DISABLE_AUTH: "",
-      CF_ACCESS_TEAM_NAME: "myteam",
-      CF_ACCESS_AUD: "test-aud",
-    };
+    registerAuth({
+      disableAuth: false,
+      teamName: "myteam",
+      aud: "test-aud",
+    });
 
-    const res = await app.request(
-      "/admin/api/subscribers/test@example.com",
-      { method: "DELETE" },
-      authEnv,
-    );
+    const res = await app.request("/admin/api/subscribers/test@example.com", {
+      method: "DELETE",
+    });
     expect(res.status).toBe(401);
   });
 });

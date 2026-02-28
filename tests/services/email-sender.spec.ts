@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AwsClient } from "aws4fetch";
+import type { AppConfig } from "@/config";
 import { EmailSender } from "@/services/email-sender";
 
 describe("EmailSender", () => {
@@ -12,7 +13,11 @@ describe("EmailSender", () => {
     region = "us-east-1",
     fromAddress = "test@example.com",
   ) {
-    return new EmailSender(createMockClient(fetchImpl), region, fromAddress);
+    const config = {
+      awsRegion: region,
+      fromAddress,
+    } as AppConfig;
+    return new EmailSender(createMockClient(fetchImpl), config);
   }
 
   describe("send", () => {

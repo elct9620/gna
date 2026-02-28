@@ -1,4 +1,5 @@
 import type { AwsClient } from "aws4fetch";
+import type { AppConfig } from "@/config";
 
 export interface SendEmailParams {
   to: string[];
@@ -10,18 +11,17 @@ export interface SendEmailParams {
 export class EmailSender {
   constructor(
     private client: AwsClient,
-    private region: string,
-    private fromAddress: string,
+    private config: AppConfig,
   ) {}
 
   async send(params: SendEmailParams): Promise<void> {
-    const endpoint = `https://email.${this.region}.amazonaws.com/v2/email/outbound-emails`;
+    const endpoint = `https://email.${this.config.awsRegion}.amazonaws.com/v2/email/outbound-emails`;
 
     const response = await this.client.fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        FromEmailAddress: this.fromAddress,
+        FromEmailAddress: this.config.fromAddress,
         Destination: { ToAddresses: params.to },
         Content: {
           Simple: {

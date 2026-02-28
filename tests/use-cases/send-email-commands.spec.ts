@@ -3,6 +3,7 @@ import type {
   IEmailDelivery,
   EmailContent,
 } from "@/use-cases/ports/email-delivery";
+import type { IAppConfig } from "@/use-cases/ports/config";
 import { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { SendTestEmailCommand } from "@/use-cases/send-test-email-command";
 
@@ -20,7 +21,11 @@ class MockEmailDelivery implements IEmailDelivery {
 
 describe("Send Email Commands", () => {
   let mockDelivery: MockEmailDelivery;
-  const baseUrl = "https://test.example.com";
+  const config: IAppConfig = {
+    baseUrl: "https://test.example.com",
+    confirmationTtlMs: 24 * 60 * 60 * 1000,
+    magicLinkTtlMs: 15 * 60 * 1000,
+  };
 
   beforeEach(() => {
     mockDelivery = new MockEmailDelivery();
@@ -28,7 +33,7 @@ describe("Send Email Commands", () => {
 
   describe("SendTemplateEmailCommand", () => {
     it("should send confirmation email with correct URL", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTemplateEmailCommand(mockDelivery, config);
       await command.execute("confirmation", "test@example.com", "abc123");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
@@ -42,7 +47,7 @@ describe("Send Email Commands", () => {
     });
 
     it("should send magic link email with correct URL", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTemplateEmailCommand(mockDelivery, config);
       await command.execute("magic_link", "test@example.com", "magic123");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
@@ -56,7 +61,7 @@ describe("Send Email Commands", () => {
     });
 
     it("should send email change confirmation with correct URL", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTemplateEmailCommand(mockDelivery, config);
       await command.execute("email_change", "new@example.com", "change123");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
@@ -70,7 +75,7 @@ describe("Send Email Commands", () => {
     });
 
     it("should throw error for unknown template", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTemplateEmailCommand(mockDelivery, config);
 
       await expect(
         command.execute("nonexistent", "test@example.com", "token"),
@@ -80,7 +85,7 @@ describe("Send Email Commands", () => {
 
   describe("SendTestEmailCommand", () => {
     it("should send test email with [TEST] prefix", async () => {
-      const command = new SendTestEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTestEmailCommand(mockDelivery, config);
       await command.execute("confirmation", "test@example.com");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
@@ -91,7 +96,7 @@ describe("Send Email Commands", () => {
     });
 
     it("should throw error for unknown template", async () => {
-      const command = new SendTestEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTestEmailCommand(mockDelivery, config);
 
       await expect(
         command.execute("nonexistent", "test@example.com"),
@@ -99,7 +104,7 @@ describe("Send Email Commands", () => {
     });
 
     it("should throw error for invalid email address", async () => {
-      const command = new SendTestEmailCommand(mockDelivery, baseUrl);
+      const command = new SendTestEmailCommand(mockDelivery, config);
 
       await expect(
         command.execute("confirmation", "not-an-email"),
