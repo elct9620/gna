@@ -1,3 +1,4 @@
+import type { Subscriber } from "@/entities/subscriber";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import { ValidateMagicLinkCommand } from "./validate-magic-link-command";
 import { CONFIRMATION_TTL_MS } from "./constants";
@@ -38,7 +39,7 @@ export class UpdateProfileCommand {
 
     if (updates.email && updates.email !== subscriber.email) {
       result.emailChangeToken = await this.requestEmailChange(
-        subscriber.email,
+        subscriber,
         updates.email,
       );
     }
@@ -47,12 +48,10 @@ export class UpdateProfileCommand {
   }
 
   private async requestEmailChange(
-    email: string,
+    subscriber: Subscriber,
     newEmail: string,
   ): Promise<string | undefined> {
-    const subscriber = await this.repo.findByEmail(email);
-
-    if (!subscriber || !subscriber.isActivated) return undefined;
+    if (!subscriber.isActivated) return undefined;
 
     const changeToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
