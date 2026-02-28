@@ -3,26 +3,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
 import { container } from "@/container";
 import { EmailSender } from "@/services/email-sender";
-import { AdminAuthService } from "@/services/admin-auth-service";
-import { Logger } from "@/services/logger";
 import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
-
-function registerAuth(authConfig: {
-  teamName?: string;
-  aud?: string;
-  disableAuth: boolean;
-}) {
-  container.register(AdminAuthService, {
-    useValue: new AdminAuthService(container.resolve(Logger), {
-      teamName: authConfig.teamName,
-      aud: authConfig.aud,
-      disableAuth: authConfig.disableAuth,
-    }),
-  });
-}
+import { registerAuth } from "../helpers/auth";
 
 describe("GET /admin", () => {
   describe("when DISABLE_AUTH is true", () => {

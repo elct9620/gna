@@ -1,24 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { container } from "@/container";
 import { EmailSender } from "@/services/email-sender";
-import { AdminAuthService } from "@/services/admin-auth-service";
-import { Logger } from "@/services/logger";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
-
-function registerAuth(authConfig: {
-  teamName?: string;
-  aud?: string;
-  disableAuth: boolean;
-}) {
-  container.register(AdminAuthService, {
-    useValue: new AdminAuthService(container.resolve(Logger), {
-      teamName: authConfig.teamName,
-      aud: authConfig.aud,
-      disableAuth: authConfig.disableAuth,
-    }),
-  });
-}
+import { registerAuth } from "../helpers/auth";
 
 describe("POST /admin/api/test-email/template", () => {
   let mockSender: MockEmailSender;

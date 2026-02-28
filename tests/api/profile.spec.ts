@@ -10,6 +10,7 @@ import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { subscribers } from "@/db/schema";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
+import { createActiveSubscriber } from "../helpers/subscriber-factory";
 
 describe("Profile API", () => {
   let mockEmailSender: MockEmailSender;
@@ -32,12 +33,6 @@ describe("Profile API", () => {
     listSubscribers = container.resolve(ListSubscribersQuery);
   });
 
-  async function createActiveSubscriber(email: string, nickname?: string) {
-    const { subscriber } = await subscribe.execute(email, nickname);
-    await confirmSubscription.execute(subscriber.confirmationToken!);
-    return subscriber;
-  }
-
   describe("POST /api/profile/request-link", () => {
     it("should return 200 regardless of email existence", async () => {
       const res = await app.request(
@@ -57,7 +52,11 @@ describe("Profile API", () => {
     });
 
     it("should send magic link email for active subscriber", async () => {
-      await createActiveSubscriber("active@example.com");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "active@example.com",
+      );
 
       const res = await app.request(
         "/api/profile/request-link",
@@ -105,7 +104,12 @@ describe("Profile API", () => {
     });
 
     it("should return subscriber data for valid token", async () => {
-      await createActiveSubscriber("profile@example.com", "ProfileUser");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "profile@example.com",
+        "ProfileUser",
+      );
       const token = (await requestMagicLink.execute("profile@example.com"))!;
 
       const res = await app.request(`/api/profile?token=${token}`, {}, env);
@@ -145,7 +149,12 @@ describe("Profile API", () => {
     });
 
     it("should update nickname", async () => {
-      await createActiveSubscriber("update@example.com", "OldNick");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "update@example.com",
+        "OldNick",
+      );
       const token = (await requestMagicLink.execute("update@example.com"))!;
 
       const res = await app.request(
@@ -168,7 +177,11 @@ describe("Profile API", () => {
     });
 
     it("should request email change and send confirmation", async () => {
-      await createActiveSubscriber("current@example.com");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "current@example.com",
+      );
       const token = (await requestMagicLink.execute("current@example.com"))!;
 
       const res = await app.request(
@@ -192,8 +205,16 @@ describe("Profile API", () => {
     });
 
     it("should return 409 when new email is already taken", async () => {
-      await createActiveSubscriber("existing@example.com");
-      await createActiveSubscriber("changer@example.com");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "existing@example.com",
+      );
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "changer@example.com",
+      );
       const token = (await requestMagicLink.execute("changer@example.com"))!;
 
       const res = await app.request(
@@ -212,8 +233,16 @@ describe("Profile API", () => {
     });
 
     it("should not consume token when returning 409", async () => {
-      await createActiveSubscriber("existing@example.com");
-      await createActiveSubscriber("changer@example.com");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "existing@example.com",
+      );
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "changer@example.com",
+      );
       const token = (await requestMagicLink.execute("changer@example.com"))!;
 
       const res = await app.request(
@@ -241,7 +270,11 @@ describe("Profile API", () => {
     });
 
     it("should consume the magic link token after use", async () => {
-      await createActiveSubscriber("consume@example.com");
+      await createActiveSubscriber(
+        subscribe,
+        confirmSubscription,
+        "consume@example.com",
+      );
       const token = (await requestMagicLink.execute("consume@example.com"))!;
 
       await app.request(
