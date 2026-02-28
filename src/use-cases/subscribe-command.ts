@@ -3,7 +3,7 @@ import { expiresAt } from "@/lib/expires-at";
 import { EMAIL_REGEX } from "@/lib/validation";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IAppConfig } from "./ports/config";
-import type { SendTemplateEmailCommand } from "./send-template-email-command";
+import type { IEmailDelivery } from "./ports/email-delivery";
 
 export type SubscribeResult =
   | {
@@ -17,7 +17,7 @@ export class SubscribeCommand {
   constructor(
     private repo: ISubscriberRepository,
     private config: IAppConfig,
-    private sendEmail: SendTemplateEmailCommand,
+    private emailDelivery: IEmailDelivery,
   ) {}
 
   async execute(email: string, nickname?: string): Promise<SubscribeResult> {
@@ -49,7 +49,11 @@ export class SubscribeCommand {
       tokenExpiresAt,
     );
 
-    await this.sendEmail.execute("confirmation", existing.email, newToken);
+    await this.emailDelivery.sendTemplate(
+      "confirmation",
+      existing.email,
+      newToken,
+    );
 
     return {
       subscriber: existing.withUpdated({
@@ -76,7 +80,11 @@ export class SubscribeCommand {
       confirmationExpiresAt,
     });
 
-    await this.sendEmail.execute("confirmation", email, confirmationToken);
+    await this.emailDelivery.sendTemplate(
+      "confirmation",
+      email,
+      confirmationToken,
+    );
 
     return { subscriber, action: "created" };
   }

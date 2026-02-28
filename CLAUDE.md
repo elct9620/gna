@@ -68,7 +68,7 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 
 Business logic lives in `src/use-cases/` as Commands (mutate state) and Queries (read-only):
 
-- **Commands:** `SubscribeCommand`, `ConfirmSubscriptionCommand`, `UpdateProfileCommand`, `UnsubscribeCommand`, `RemoveSubscriberCommand`, `RequestMagicLinkCommand`, `ConfirmEmailChangeCommand`, `ValidateMagicLinkCommand`, `SendTemplateEmailCommand`, `SendTestEmailCommand`
+- **Commands:** `SubscribeCommand`, `ConfirmSubscriptionCommand`, `UpdateProfileCommand`, `UnsubscribeCommand`, `RemoveSubscriberCommand`, `RequestMagicLinkCommand`, `ConfirmEmailChangeCommand`, `ValidateMagicLinkCommand`, `SendTestEmailCommand`
 - **Queries:** `ListSubscribersQuery`
 
 Use cases depend on **port interfaces** (`src/use-cases/ports/`), not concrete implementations:
@@ -89,7 +89,7 @@ tsyringe container is configured in `src/container.ts` and imported at the top o
 | Singleton | `registerSingleton()`                     | No constructor deps                            | `EmailRenderer`, `Logger`                                  |
 | Factory   | `register()` + `instanceCachingFactory()` | Needs env values, constructor deps, or caching | Use cases, repositories, `EmailSender`, `AdminAuthService` |
 
-Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `APP_CONFIG`). `APP_CONFIG` is a unified `AppConfig` object (registered via `instanceCachingFactory`) containing base URL, TTL values, AWS region/from-address, and auth config — use cases depend on the `IAppConfig` port interface (`src/use-cases/ports/config.ts`), while infrastructure services use the full `AppConfig` (`src/config.ts`). Notification commands (e.g., `SendTemplateEmailCommand`) use factory without caching to get fresh instances.
+Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `APP_CONFIG`). `APP_CONFIG` is a unified `AppConfig` object (registered via `instanceCachingFactory`) containing base URL, TTL values, AWS region/from-address, and auth config — use cases depend on the `IAppConfig` port interface (`src/use-cases/ports/config.ts`), while infrastructure services use the full `AppConfig` (`src/config.ts`). Notification commands (e.g., `SendTestEmailCommand`) use factory without caching to get fresh instances.
 
 ### Database
 

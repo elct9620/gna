@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { EmailRenderer } from "./email-renderer";
 import { EmailSender } from "./email-sender";
 import { BaseEmail } from "@/emails/base-email";
+import { EMAIL_TEMPLATES, buildEmailContent } from "@/emails/templates";
 import type {
   IEmailDelivery,
   EmailContent,
@@ -11,6 +12,7 @@ export class NotificationService implements IEmailDelivery {
   constructor(
     private emailRenderer: EmailRenderer,
     private emailSender: EmailSender,
+    private baseUrl: string,
   ) {}
 
   async send(
@@ -37,5 +39,19 @@ export class NotificationService implements IEmailDelivery {
       html,
       text,
     });
+  }
+
+  async sendTemplate(
+    template: string,
+    email: string,
+    token: string,
+  ): Promise<void> {
+    const t = EMAIL_TEMPLATES[template];
+    if (!t) throw new Error(`Unknown email template: ${template}`);
+    await this.send(
+      email,
+      t.subject,
+      buildEmailContent(t, this.baseUrl, token),
+    );
   }
 }

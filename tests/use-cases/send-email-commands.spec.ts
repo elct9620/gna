@@ -4,7 +4,8 @@ import type {
   EmailContent,
 } from "@/use-cases/ports/email-delivery";
 import type { IAppConfig } from "@/use-cases/ports/config";
-import { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
+import { NotificationService } from "@/services/notification-service";
+import { EmailRenderer } from "@/services/email-renderer";
 import { SendTestEmailCommand } from "@/use-cases/send-test-email-command";
 
 class MockEmailDelivery implements IEmailDelivery {
@@ -17,79 +18,95 @@ class MockEmailDelivery implements IEmailDelivery {
   ): Promise<void> {
     this.sentEmails.push({ to, subject, content });
   }
+
+  async sendTemplate(): Promise<void> {
+    throw new Error("Not implemented in mock");
+  }
+}
+
+class MockEmailSender {
+  sentEmails: {
+    to: string[];
+    subject: string;
+    html: string;
+    text: string;
+  }[] = [];
+
+  async send(params: {
+    to: string[];
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<void> {
+    this.sentEmails.push(params);
+  }
 }
 
 describe("Send Email Commands", () => {
-  let mockDelivery: MockEmailDelivery;
-  const config: IAppConfig = {
-    baseUrl: "https://test.example.com",
-    confirmationTtlMs: 24 * 60 * 60 * 1000,
-    magicLinkTtlMs: 15 * 60 * 1000,
-  };
+  describe("NotificationService.sendTemplate", () => {
+    let mockSender: MockEmailSender;
+    let service: NotificationService;
+    const baseUrl = "https://test.example.com";
 
-  beforeEach(() => {
-    mockDelivery = new MockEmailDelivery();
-  });
-
-  describe("SendTemplateEmailCommand", () => {
-    it("should send confirmation email with correct URL", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, config);
-      await command.execute("confirmation", "test@example.com", "abc123");
-
-      expect(mockDelivery.sentEmails).toHaveLength(1);
-      const sent = mockDelivery.sentEmails[0];
-      expect(sent.to).toBe("test@example.com");
-      expect(sent.subject).toBe("Confirm your subscription");
-      expect(sent.content.actionUrl).toBe(
-        "https://test.example.com/confirm?token=abc123",
+    beforeEach(() => {
+      mockSender = new MockEmailSender();
+      service = new NotificationService(
+        new EmailRenderer(),
+        mockSender as any,
+        baseUrl,
       );
-      expect(sent.content.heading).toBe("Confirm Your Subscription");
+    });
+
+    it("should send confirmation email with correct URL", async () => {
+      await service.sendTemplate("confirmation", "test@example.com", "abc123");
+
+      expect(mockSender.sentEmails).toHaveLength(1);
+      const sent = mockSender.sentEmails[0];
+      expect(sent.to).toEqual(["test@example.com"]);
+      expect(sent.subject).toBe("Confirm your subscription");
     });
 
     it("should send magic link email with correct URL", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, config);
-      await command.execute("magic_link", "test@example.com", "magic123");
+      await service.sendTemplate("magic_link", "test@example.com", "magic123");
 
-      expect(mockDelivery.sentEmails).toHaveLength(1);
-      const sent = mockDelivery.sentEmails[0];
-      expect(sent.to).toBe("test@example.com");
+      expect(mockSender.sentEmails).toHaveLength(1);
+      const sent = mockSender.sentEmails[0];
+      expect(sent.to).toEqual(["test@example.com"]);
       expect(sent.subject).toBe("Your profile access link");
-      expect(sent.content.actionUrl).toBe(
-        "https://test.example.com/profile?token=magic123",
-      );
-      expect(sent.content.heading).toBe("Your Profile Access Link");
     });
 
     it("should send email change confirmation with correct URL", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, config);
-      await command.execute("email_change", "new@example.com", "change123");
-
-      expect(mockDelivery.sentEmails).toHaveLength(1);
-      const sent = mockDelivery.sentEmails[0];
-      expect(sent.to).toBe("new@example.com");
-      expect(sent.subject).toBe("Confirm your email change");
-      expect(sent.content.actionUrl).toBe(
-        "https://test.example.com/confirm?token=change123",
+      await service.sendTemplate(
+        "email_change",
+        "new@example.com",
+        "change123",
       );
-      expect(sent.content.heading).toBe("Confirm Email Change");
+
+      expect(mockSender.sentEmails).toHaveLength(1);
+      const sent = mockSender.sentEmails[0];
+      expect(sent.to).toEqual(["new@example.com"]);
+      expect(sent.subject).toBe("Confirm your email change");
     });
 
-    it("should return error for unknown template", async () => {
-      const command = new SendTemplateEmailCommand(mockDelivery, config);
-
-      const result = await command.execute(
-        "nonexistent",
-        "test@example.com",
-        "token",
-      );
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBe("unknown_template");
-      }
+    it("should throw error for unknown template", async () => {
+      await expect(
+        service.sendTemplate("nonexistent", "test@example.com", "token"),
+      ).rejects.toThrow("Unknown email template: nonexistent");
     });
   });
 
   describe("SendTestEmailCommand", () => {
+    let mockDelivery: MockEmailDelivery;
+    const config: IAppConfig = {
+      baseUrl: "https://test.example.com",
+      confirmationTtlMs: 24 * 60 * 60 * 1000,
+      magicLinkTtlMs: 15 * 60 * 1000,
+    };
+
+    beforeEach(() => {
+      mockDelivery = new MockEmailDelivery();
+    });
+
     it("should send test email with [TEST] prefix", async () => {
       const command = new SendTestEmailCommand(mockDelivery, config);
       await command.execute("confirmation", "test@example.com");

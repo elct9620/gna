@@ -3,7 +3,7 @@ import { expiresAt } from "@/lib/expires-at";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IMagicLinkValidator } from "./ports/magic-link-validator";
 import type { IAppConfig } from "./ports/config";
-import type { SendTemplateEmailCommand } from "./send-template-email-command";
+import type { IEmailDelivery } from "./ports/email-delivery";
 
 export interface UpdateProfileResult {
   error?: "invalid_token" | "email_taken";
@@ -14,7 +14,7 @@ export class UpdateProfileCommand {
     private repo: ISubscriberRepository,
     private validateMagicLink: IMagicLinkValidator,
     private config: IAppConfig,
-    private sendEmail: SendTemplateEmailCommand,
+    private emailDelivery: IEmailDelivery,
   ) {}
 
   async execute(
@@ -65,6 +65,10 @@ export class UpdateProfileCommand {
       tokenExpiresAt,
     );
 
-    await this.sendEmail.execute("email_change", newEmail, changeToken);
+    await this.emailDelivery.sendTemplate(
+      "email_change",
+      newEmail,
+      changeToken,
+    );
   }
 }

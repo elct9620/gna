@@ -2,9 +2,9 @@ import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
 import type { IAppConfig } from "@/use-cases/ports/config";
+import type { IEmailDelivery } from "@/use-cases/ports/email-delivery";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
-import type { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 import { createActiveSubscriber } from "../helpers/subscriber-factory";
@@ -12,7 +12,9 @@ import { createActiveSubscriber } from "../helpers/subscriber-factory";
 describe("SubscribeCommand", () => {
   let subscribe: SubscribeCommand;
   let confirmSubscription: ConfirmSubscriptionCommand;
-  let mockSendEmail: { execute: ReturnType<typeof vi.fn> };
+  let mockEmailDelivery: IEmailDelivery & {
+    sendTemplate: ReturnType<typeof vi.fn>;
+  };
 
   const config: IAppConfig = {
     baseUrl: "https://test.example.com",
@@ -24,12 +26,11 @@ describe("SubscribeCommand", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
     const repo = new SubscriberRepository(db);
-    mockSendEmail = { execute: vi.fn().mockResolvedValue({ success: true }) };
-    subscribe = new SubscribeCommand(
-      repo,
-      config,
-      mockSendEmail as unknown as SendTemplateEmailCommand,
-    );
+    mockEmailDelivery = {
+      send: vi.fn().mockResolvedValue(undefined),
+      sendTemplate: vi.fn().mockResolvedValue(undefined),
+    };
+    subscribe = new SubscribeCommand(repo, config, mockEmailDelivery);
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
   });
 
@@ -46,7 +47,7 @@ describe("SubscribeCommand", () => {
   it("should send confirmation email on new subscription", async () => {
     await subscribe.execute("new@example.com");
 
-    expect(mockSendEmail.execute).toHaveBeenCalledWith(
+    expect(mockEmailDelivery.sendTemplate).toHaveBeenCalledWith(
       "confirmation",
       "new@example.com",
       expect.any(String),
@@ -55,11 +56,11 @@ describe("SubscribeCommand", () => {
 
   it("should send confirmation email on resend", async () => {
     await subscribe.execute("resend@example.com");
-    mockSendEmail.execute.mockClear();
+    mockEmailDelivery.sendTemplate.mockClear();
 
     await subscribe.execute("resend@example.com");
 
-    expect(mockSendEmail.execute).toHaveBeenCalledWith(
+    expect(mockEmailDelivery.sendTemplate).toHaveBeenCalledWith(
       "confirmation",
       "resend@example.com",
       expect.any(String),
@@ -68,7 +69,7 @@ describe("SubscribeCommand", () => {
 
   it("should not send email for invalid email", async () => {
     await subscribe.execute("not-an-email");
-    expect(mockSendEmail.execute).not.toHaveBeenCalled();
+    expect(mockEmailDelivery.sendTemplate).not.toHaveBeenCalled();
   });
 
   it("should return none for already active subscriber", async () => {

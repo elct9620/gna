@@ -17,7 +17,6 @@ import { UpdateProfileCommand } from "./use-cases/update-profile-command";
 import { UnsubscribeCommand } from "./use-cases/unsubscribe-command";
 import { RemoveSubscriberCommand } from "./use-cases/remove-subscriber-command";
 import { ListSubscribersQuery } from "./use-cases/list-subscribers-query";
-import { SendTemplateEmailCommand } from "./use-cases/send-template-email-command";
 import { SendTestEmailCommand } from "./use-cases/send-test-email-command";
 import { Logger } from "./services/logger";
 import { AdminAuthService } from "./services/admin-auth-service";
@@ -68,9 +67,11 @@ container.register(EmailSender, {
 
 container.register(NotificationService, {
   useFactory: (c) => {
+    const config = c.resolve<AppConfig>(APP_CONFIG);
     return new NotificationService(
       c.resolve(EmailRenderer),
       c.resolve(EmailSender),
+      config.baseUrl,
     );
   },
 });
@@ -86,7 +87,7 @@ container.register(SubscribeCommand, {
     return new SubscribeCommand(
       c.resolve(SubscriberRepository),
       c.resolve<AppConfig>(APP_CONFIG),
-      c.resolve(SendTemplateEmailCommand),
+      c.resolve(NotificationService),
     );
   },
 });
@@ -117,7 +118,7 @@ container.register(RequestMagicLinkCommand, {
     return new RequestMagicLinkCommand(
       c.resolve(SubscriberRepository),
       c.resolve<AppConfig>(APP_CONFIG),
-      c.resolve(SendTemplateEmailCommand),
+      c.resolve(NotificationService),
     );
   },
 });
@@ -134,7 +135,7 @@ container.register(UpdateProfileCommand, {
       c.resolve(SubscriberRepository),
       c.resolve(ValidateMagicLinkCommand),
       c.resolve<AppConfig>(APP_CONFIG),
-      c.resolve(SendTemplateEmailCommand),
+      c.resolve(NotificationService),
     );
   },
 });
@@ -155,15 +156,6 @@ container.register(ListSubscribersQuery, {
   useFactory: instanceCachingFactory((c) => {
     return new ListSubscribersQuery(c.resolve(SubscriberRepository));
   }),
-});
-
-container.register(SendTemplateEmailCommand, {
-  useFactory: (c) => {
-    return new SendTemplateEmailCommand(
-      c.resolve(NotificationService),
-      c.resolve<AppConfig>(APP_CONFIG),
-    );
-  },
 });
 
 container.register(SendTestEmailCommand, {
