@@ -60,7 +60,7 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 - `src/repository/` — Data access layer implementing port interfaces (e.g., `SubscriberRepository`)
 - `src/services/` — Infrastructure services (`EmailRenderer`, `EmailSender`, `NotificationService`, `Logger`, `AdminAuthService`)
 - `src/use-cases/` — CQRS commands and queries (business logic)
-- `src/use-cases/ports/` — Port interfaces for dependency inversion (`ISubscriberRepository`, `IEmailDelivery`)
+- `src/use-cases/ports/` — Port interfaces for dependency inversion (`ISubscriberRepository`, `IEmailDelivery`, `IAppConfig`)
 - `tests/` — Vitest integration tests using Cloudflare Workers pool
 - `tests/helpers/` — Test utilities (`MockEmailSender`, `MockLogger`)
 - `drizzle/` — Generated D1 migration SQL files (via `pnpm db:generate`)
@@ -90,7 +90,7 @@ tsyringe container is configured in `src/container.ts` and imported at the top o
 | Singleton | `registerSingleton()`                     | No constructor deps                            | `EmailRenderer`, `Logger`                                  |
 | Factory   | `register()` + `instanceCachingFactory()` | Needs env values, constructor deps, or caching | Use cases, repositories, `EmailSender`, `AdminAuthService` |
 
-Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`, `BASE_URL`). Notification commands (e.g., `SendTemplateEmailCommand`) use factory without caching to get fresh instances.
+Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `APP_CONFIG`). `APP_CONFIG` is a unified `AppConfig` object (registered via `instanceCachingFactory`) containing base URL, TTL values, AWS region/from-address, and auth config — use cases depend on the `IAppConfig` port interface (`src/use-cases/ports/config.ts`), while infrastructure services use the full `AppConfig` (`src/config.ts`). Notification commands (e.g., `SendTemplateEmailCommand`) use factory without caching to get fresh instances.
 
 ### Database
 
@@ -171,7 +171,7 @@ Add new routes to `src/routes.tsx`. Both server SSR and client hydration share t
 - Import test utilities from `cloudflare:test` for worker-specific APIs (e.g. `env` bindings)
 - `tests/setup.ts` imports `reflect-metadata`, applies D1 migrations globally, and silences console output (spies on `log`/`info`/`warn`/`error`)
 - Vitest config references `wrangler.jsonc` for worker bindings; uses `singleWorker: true` to avoid spawning too many workerd processes
-- Override env bindings in integration tests via the third argument to `app.request()`: `app.request("/path", {}, { ...env, DISABLE_AUTH: "true" })`
-- Mock services by re-registering on the tsyringe container: `container.register(EmailSender, { useValue: mockInstance })`
+- Override env bindings in integration tests via the third argument to `app.request()`: `app.request("/path", {}, env)`
+- Mock services by re-registering on the tsyringe container: `container.register(EmailSender, { useValue: mockInstance })`. Admin auth tests re-register `AdminAuthService` with different auth configs instead of overriding `c.env`.
 - Radix UI transitive dependencies (`react-remove-scroll`, `react-remove-scroll-bar`) must be listed in `vitest.config.ts` under `test.deps.optimizer.ssr.include` and as explicit devDependencies, otherwise workerd cannot resolve their bare specifier imports
 - Do not add packages to `test.deps.optimizer.ssr.include` preemptively — only add them when tests actually fail without it
