@@ -22,7 +22,6 @@ app.use(renderer);
 app.use("/api/*", cors());
 
 app.use("/admin/*", adminAuth);
-app.use("/admin", adminAuth);
 
 const apiRoutes = app
   .route("/api", subscriptionApi)

@@ -1,6 +1,5 @@
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
-
-const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
+import { MAGIC_LINK_TTL_MS } from "./constants";
 
 export class RequestMagicLinkCommand {
   constructor(private repo: ISubscriberRepository) {}
