@@ -1,7 +1,8 @@
 import { Subscriber } from "@/entities/subscriber";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
+import type { IMagicLinkValidator } from "./ports/magic-link-validator";
 
-export class ValidateMagicLinkCommand {
+export class ValidateMagicLinkCommand implements IMagicLinkValidator {
   constructor(private repo: ISubscriberRepository) {}
 
   async execute(token: string): Promise<Subscriber | null> {

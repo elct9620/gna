@@ -1,6 +1,6 @@
 import type { Subscriber } from "@/entities/subscriber";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
-import { ValidateMagicLinkCommand } from "./validate-magic-link-command";
+import type { IMagicLinkValidator } from "./ports/magic-link-validator";
 import { CONFIRMATION_TTL_MS } from "./constants";
 
 export interface UpdateProfileResult {
@@ -11,7 +11,7 @@ export interface UpdateProfileResult {
 export class UpdateProfileCommand {
   constructor(
     private repo: ISubscriberRepository,
-    private validateMagicLink: ValidateMagicLinkCommand,
+    private validateMagicLink: IMagicLinkValidator,
   ) {}
 
   async execute(
