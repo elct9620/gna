@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { container } from "@/container";
-import { EmailSender } from "@/services/email-sender";
+import { container, EMAIL_SENDER } from "@/container";
 import app from "@/index";
 import { MockEmailSender } from "../helpers/mock-email-sender";
 import { registerAuth } from "../helpers/auth";
@@ -11,9 +10,7 @@ describe("POST /admin/api/test-email/template", () => {
   beforeEach(() => {
     mockSender = new MockEmailSender();
     registerAuth({ disableAuth: true });
-    container.register(EmailSender, {
-      useValue: mockSender as unknown as EmailSender,
-    });
+    container.register(EMAIL_SENDER, { useValue: mockSender });
   });
 
   it("should send test confirmation email", async () => {

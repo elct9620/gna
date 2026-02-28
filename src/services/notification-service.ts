@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { EmailRenderer } from "./email-renderer";
-import { EmailSender } from "./email-sender";
+import type { IEmailSender } from "./email-sender";
 import { BaseEmail } from "@/emails/base-email";
 import { EMAIL_TEMPLATES, buildEmailContent } from "@/emails/templates";
 import type {
@@ -11,7 +11,7 @@ import type {
 export class NotificationService implements IEmailDelivery {
   constructor(
     private emailRenderer: EmailRenderer,
-    private emailSender: EmailSender,
+    private emailSender: IEmailSender,
     private baseUrl: string,
   ) {}
 

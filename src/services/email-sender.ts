@@ -8,7 +8,11 @@ export interface SendEmailParams {
   text: string;
 }
 
-export class EmailSender {
+export interface IEmailSender {
+  send(params: SendEmailParams): Promise<void>;
+}
+
+export class EmailSender implements IEmailSender {
   constructor(
     private client: AwsClient,
     private config: AppConfig,

@@ -11,10 +11,7 @@ describe("NotificationService", () => {
   beforeEach(() => {
     mockEmailSender = new MockEmailSender();
     const renderer = container.resolve(EmailRenderer);
-    service = new NotificationService(
-      renderer,
-      mockEmailSender as unknown as import("@/services/email-sender").EmailSender,
-    );
+    service = new NotificationService(renderer, mockEmailSender);
   });
 
   describe("send", () => {

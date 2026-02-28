@@ -1,6 +1,6 @@
-import type { SendEmailParams } from "@/services/email-sender";
+import type { IEmailSender, SendEmailParams } from "@/services/email-sender";
 
-export class MockEmailSender {
+export class MockEmailSender implements IEmailSender {
   sentEmails: SendEmailParams[] = [];
 
   async send(params: SendEmailParams): Promise<void> {

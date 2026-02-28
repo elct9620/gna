@@ -1,8 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
-import { container } from "@/container";
-import { EmailSender } from "@/services/email-sender";
+import { container, EMAIL_SENDER } from "@/container";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
@@ -24,9 +23,7 @@ describe("Profile API", () => {
     await db.delete(subscribers);
 
     mockEmailSender = new MockEmailSender();
-    container.register(EmailSender, {
-      useValue: mockEmailSender as unknown as EmailSender,
-    });
+    container.register(EMAIL_SENDER, { useValue: mockEmailSender });
     subscribe = container.resolve(SubscribeCommand);
     confirmSubscription = container.resolve(ConfirmSubscriptionCommand);
     requestMagicLink = container.resolve(RequestMagicLinkCommand);

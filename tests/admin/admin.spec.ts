@@ -1,8 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { drizzle } from "drizzle-orm/d1";
-import { container } from "@/container";
-import { EmailSender } from "@/services/email-sender";
+import { container, EMAIL_SENDER } from "@/container";
 import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { subscribers } from "@/db/schema";
 import app from "@/index";
@@ -86,9 +85,7 @@ describe("GET /admin/api/subscribers", () => {
     await db.delete(subscribers);
 
     registerAuth({ disableAuth: true });
-    container.register(EmailSender, {
-      useValue: new MockEmailSender() as unknown as EmailSender,
-    });
+    container.register(EMAIL_SENDER, { useValue: new MockEmailSender() });
   });
 
   it("should return empty subscribers list", async () => {
@@ -176,9 +173,7 @@ describe("DELETE /admin/api/subscribers/:email", () => {
     await db.delete(subscribers);
 
     registerAuth({ disableAuth: true });
-    container.register(EmailSender, {
-      useValue: new MockEmailSender() as unknown as EmailSender,
-    });
+    container.register(EMAIL_SENDER, { useValue: new MockEmailSender() });
   });
 
   it("should remove an existing subscriber", async () => {

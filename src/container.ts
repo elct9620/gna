@@ -5,7 +5,7 @@ import { env } from "cloudflare:workers";
 import { APP_CONFIG, type AppConfig } from "./config";
 import { SubscriberRepository } from "./repository/subscriber-repository";
 import { EmailRenderer } from "./services/email-renderer";
-import { EmailSender } from "./services/email-sender";
+import { EmailSender, type IEmailSender } from "./services/email-sender";
 import { NotificationService } from "./services/notification-service";
 import { SubscribeCommand } from "./use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "./use-cases/confirm-subscription-command";
@@ -23,6 +23,7 @@ import { AdminAuthService } from "./services/admin-auth-service";
 
 export const DATABASE = Symbol("DATABASE");
 export const AWS_CLIENT = Symbol("AWS_CLIENT");
+export const EMAIL_SENDER = Symbol("EMAIL_SENDER");
 export { APP_CONFIG };
 
 container.register(DATABASE, {
@@ -56,7 +57,7 @@ container.register(APP_CONFIG, {
   ),
 });
 
-container.register(EmailSender, {
+container.register(EMAIL_SENDER, {
   useFactory: instanceCachingFactory((c) => {
     return new EmailSender(
       c.resolve(AWS_CLIENT),
@@ -70,7 +71,7 @@ container.register(NotificationService, {
     const config = c.resolve<AppConfig>(APP_CONFIG);
     return new NotificationService(
       c.resolve(EmailRenderer),
-      c.resolve(EmailSender),
+      c.resolve<IEmailSender>(EMAIL_SENDER),
       config.baseUrl,
     );
   },

@@ -7,6 +7,7 @@ import type { IAppConfig } from "@/use-cases/ports/config";
 import { NotificationService } from "@/services/notification-service";
 import { EmailRenderer } from "@/services/email-renderer";
 import { SendTestEmailCommand } from "@/use-cases/send-test-email-command";
+import { MockEmailSender } from "../helpers/mock-email-sender";
 
 class MockEmailDelivery implements IEmailDelivery {
   sentEmails: { to: string; subject: string; content: EmailContent }[] = [];
@@ -24,24 +25,6 @@ class MockEmailDelivery implements IEmailDelivery {
   }
 }
 
-class MockEmailSender {
-  sentEmails: {
-    to: string[];
-    subject: string;
-    html: string;
-    text: string;
-  }[] = [];
-
-  async send(params: {
-    to: string[];
-    subject: string;
-    html: string;
-    text: string;
-  }): Promise<void> {
-    this.sentEmails.push(params);
-  }
-}
-
 describe("Send Email Commands", () => {
   describe("NotificationService.sendTemplate", () => {
     let mockSender: MockEmailSender;
@@ -52,7 +35,7 @@ describe("Send Email Commands", () => {
       mockSender = new MockEmailSender();
       service = new NotificationService(
         new EmailRenderer(),
-        mockSender as any,
+        mockSender,
         baseUrl,
       );
     });
