@@ -9,6 +9,7 @@ import { NotificationService } from "./services/notification-service";
 import { SubscribeCommand } from "./use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "./use-cases/confirm-subscription-command";
 import { ConfirmEmailChangeCommand } from "./use-cases/confirm-email-change-command";
+import { ConfirmCommand } from "./use-cases/confirm-command";
 import { RequestMagicLinkCommand } from "./use-cases/request-magic-link-command";
 import { ValidateMagicLinkCommand } from "./use-cases/validate-magic-link-command";
 import { UpdateProfileCommand } from "./use-cases/update-profile-command";
@@ -92,6 +93,15 @@ container.register(ConfirmSubscriptionCommand, {
 container.register(ConfirmEmailChangeCommand, {
   useFactory: instanceCachingFactory((c) => {
     return new ConfirmEmailChangeCommand(c.resolve(SubscriberRepository));
+  }),
+});
+
+container.register(ConfirmCommand, {
+  useFactory: instanceCachingFactory((c) => {
+    return new ConfirmCommand(
+      c.resolve(ConfirmSubscriptionCommand),
+      c.resolve(ConfirmEmailChangeCommand),
+    );
   }),
 });
 

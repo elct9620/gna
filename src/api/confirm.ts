@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
-import { ConfirmEmailChangeCommand } from "@/use-cases/confirm-email-change-command";
+import { ConfirmCommand } from "@/use-cases/confirm-command";
 
 const app = new Hono().get("/", async (c) => {
   const token = c.req.query("token");
@@ -9,19 +8,17 @@ const app = new Hono().get("/", async (c) => {
     return c.redirect("/confirmed?error=missing_token", 302);
   }
 
-  const confirmSubscription = container.resolve(ConfirmSubscriptionCommand);
-  const subscriptionResult = await confirmSubscription.execute(token);
-  if (subscriptionResult) {
-    return c.redirect("/confirmed", 302);
-  }
+  const command = container.resolve(ConfirmCommand);
+  const result = await command.execute(token);
 
-  const confirmEmailChange = container.resolve(ConfirmEmailChangeCommand);
-  const emailChangeResult = await confirmEmailChange.execute(token);
-  if (emailChangeResult) {
-    return c.redirect("/profile?email_changed=true", 302);
+  switch (result.kind) {
+    case "subscription":
+      return c.redirect("/confirmed", 302);
+    case "email_change":
+      return c.redirect("/profile?email_changed=true", 302);
+    case "invalid":
+      return c.redirect("/confirmed?error=invalid_token", 302);
   }
-
-  return c.redirect("/confirmed?error=invalid_token", 302);
 });
 
 export default app;
