@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import type { IAppConfig } from "@/use-cases/ports/config";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
+import type { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { ConfirmEmailChangeCommand } from "@/use-cases/confirm-email-change-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
 import { ValidateMagicLinkCommand } from "@/use-cases/validate-magic-link-command";
@@ -12,6 +13,10 @@ import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
 import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 import { createActiveSubscriber } from "../helpers/subscriber-factory";
+
+const noopSendEmail = {
+  execute: async () => ({ success: true as const }),
+} as unknown as SendTemplateEmailCommand;
 
 describe("ConfirmEmailChangeCommand", () => {
   let repo: SubscriberRepository;
@@ -31,12 +36,17 @@ describe("ConfirmEmailChangeCommand", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
     repo = new SubscriberRepository(db);
-    subscribe = new SubscribeCommand(repo, config);
+    subscribe = new SubscribeCommand(repo, config, noopSendEmail);
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
     confirmEmailChange = new ConfirmEmailChangeCommand(repo);
-    requestMagicLink = new RequestMagicLinkCommand(repo, config);
+    requestMagicLink = new RequestMagicLinkCommand(repo, config, noopSendEmail);
     const validateMagicLink = new ValidateMagicLinkCommand(repo);
-    updateProfile = new UpdateProfileCommand(repo, validateMagicLink, config);
+    updateProfile = new UpdateProfileCommand(
+      repo,
+      validateMagicLink,
+      config,
+      noopSendEmail,
+    );
   });
 
   async function setupEmailChange(
@@ -45,10 +55,9 @@ describe("ConfirmEmailChangeCommand", () => {
   ): Promise<string> {
     await createActiveSubscriber(subscribe, confirmSubscription, oldEmail);
     const magicToken = (await requestMagicLink.execute(oldEmail))!;
-    const result = await updateProfile.execute(magicToken, {
-      email: newEmail,
-    });
-    return result.emailChangeToken!;
+    await updateProfile.execute(magicToken, { email: newEmail });
+    const subscriber = await repo.findByEmail(oldEmail);
+    return subscriber!.confirmationToken!;
   }
 
   it("should return null for expired confirmation token", async () => {

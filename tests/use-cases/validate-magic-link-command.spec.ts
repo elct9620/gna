@@ -5,11 +5,16 @@ import { eq } from "drizzle-orm";
 import type { IAppConfig } from "@/use-cases/ports/config";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
+import type { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
 import { ValidateMagicLinkCommand } from "@/use-cases/validate-magic-link-command";
 import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 import { createActiveSubscriber } from "../helpers/subscriber-factory";
+
+const noopSendEmail = {
+  execute: async () => ({ success: true as const }),
+} as unknown as SendTemplateEmailCommand;
 
 describe("ValidateMagicLinkCommand", () => {
   let subscribe: SubscribeCommand;
@@ -27,9 +32,9 @@ describe("ValidateMagicLinkCommand", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
     const repo = new SubscriberRepository(db);
-    subscribe = new SubscribeCommand(repo, config);
+    subscribe = new SubscribeCommand(repo, config, noopSendEmail);
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
-    requestMagicLink = new RequestMagicLinkCommand(repo, config);
+    requestMagicLink = new RequestMagicLinkCommand(repo, config, noopSendEmail);
     validateMagicLink = new ValidateMagicLinkCommand(repo);
   });
 

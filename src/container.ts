@@ -82,12 +82,13 @@ container.register(SubscriberRepository, {
 });
 
 container.register(SubscribeCommand, {
-  useFactory: instanceCachingFactory((c) => {
+  useFactory: (c) => {
     return new SubscribeCommand(
       c.resolve(SubscriberRepository),
       c.resolve<AppConfig>(APP_CONFIG),
+      c.resolve(SendTemplateEmailCommand),
     );
-  }),
+  },
 });
 
 container.register(ConfirmSubscriptionCommand, {
@@ -112,12 +113,13 @@ container.register(ConfirmCommand, {
 });
 
 container.register(RequestMagicLinkCommand, {
-  useFactory: instanceCachingFactory((c) => {
+  useFactory: (c) => {
     return new RequestMagicLinkCommand(
       c.resolve(SubscriberRepository),
       c.resolve<AppConfig>(APP_CONFIG),
+      c.resolve(SendTemplateEmailCommand),
     );
-  }),
+  },
 });
 
 container.register(ValidateMagicLinkCommand, {
@@ -127,13 +129,14 @@ container.register(ValidateMagicLinkCommand, {
 });
 
 container.register(UpdateProfileCommand, {
-  useFactory: instanceCachingFactory((c) => {
+  useFactory: (c) => {
     return new UpdateProfileCommand(
       c.resolve(SubscriberRepository),
       c.resolve(ValidateMagicLinkCommand),
       c.resolve<AppConfig>(APP_CONFIG),
+      c.resolve(SendTemplateEmailCommand),
     );
-  }),
+  },
 });
 
 container.register(UnsubscribeCommand, {

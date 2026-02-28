@@ -73,12 +73,18 @@ describe("GET /confirm", () => {
     await confirmSubscription.execute(subscriber.confirmationToken!);
 
     const magicToken = (await requestMagicLink.execute("old@example.com"))!;
-    const result = await updateProfile.execute(magicToken, {
+    await updateProfile.execute(magicToken, {
       email: "new@example.com",
     });
 
+    const { ListSubscribersQuery } =
+      await import("@/use-cases/list-subscribers-query");
+    const list = await container.resolve(ListSubscribersQuery).execute();
+    const updatedSub = list.find((s) => s.email === "old@example.com");
+    const emailChangeToken = updatedSub!.confirmationToken!;
+
     const res = await app.request(
-      `/confirm?token=${result.emailChangeToken}`,
+      `/confirm?token=${emailChangeToken}`,
       { redirect: "manual" },
       env,
     );

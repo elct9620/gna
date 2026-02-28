@@ -57,6 +57,7 @@ describe("Profile API", () => {
         confirmSubscription,
         "active@example.com",
       );
+      mockEmailSender.reset();
 
       const res = await app.request(
         "/api/profile/request-link",
@@ -77,6 +78,7 @@ describe("Profile API", () => {
 
     it("should not send magic link for pending subscriber", async () => {
       await subscribe.execute("pending@example.com");
+      mockEmailSender.reset();
 
       await app.request(
         "/api/profile/request-link",
@@ -183,6 +185,7 @@ describe("Profile API", () => {
         "current@example.com",
       );
       const token = (await requestMagicLink.execute("current@example.com"))!;
+      mockEmailSender.reset();
 
       const res = await app.request(
         "/api/profile/update",

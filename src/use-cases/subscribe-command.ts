@@ -3,12 +3,12 @@ import { expiresAt } from "@/lib/expires-at";
 import { EMAIL_REGEX } from "@/lib/validation";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IAppConfig } from "./ports/config";
+import type { SendTemplateEmailCommand } from "./send-template-email-command";
 
 export type SubscribeResult =
   | {
       action: "created" | "resend";
       subscriber: Subscriber;
-      confirmationToken: string;
     }
   | { action: "none"; subscriber: Subscriber }
   | { action: "invalid_email" };
@@ -17,6 +17,7 @@ export class SubscribeCommand {
   constructor(
     private repo: ISubscriberRepository,
     private config: IAppConfig,
+    private sendEmail: SendTemplateEmailCommand,
   ) {}
 
   async execute(email: string, nickname?: string): Promise<SubscribeResult> {
@@ -48,13 +49,14 @@ export class SubscribeCommand {
       tokenExpiresAt,
     );
 
+    await this.sendEmail.execute("confirmation", existing.email, newToken);
+
     return {
       subscriber: existing.withUpdated({
         confirmationToken: newToken,
         confirmationExpiresAt: new Date(tokenExpiresAt),
       }),
       action: "resend",
-      confirmationToken: newToken,
     };
   }
 
@@ -74,6 +76,8 @@ export class SubscribeCommand {
       confirmationExpiresAt,
     });
 
-    return { subscriber, action: "created", confirmationToken };
+    await this.sendEmail.execute("confirmation", email, confirmationToken);
+
+    return { subscriber, action: "created" };
   }
 }

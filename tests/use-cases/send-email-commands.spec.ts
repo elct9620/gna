@@ -74,12 +74,18 @@ describe("Send Email Commands", () => {
       expect(sent.content.heading).toBe("Confirm Email Change");
     });
 
-    it("should throw error for unknown template", async () => {
+    it("should return error for unknown template", async () => {
       const command = new SendTemplateEmailCommand(mockDelivery, config);
 
-      await expect(
-        command.execute("nonexistent", "test@example.com", "token"),
-      ).rejects.toThrow("Unknown template: nonexistent");
+      const result = await command.execute(
+        "nonexistent",
+        "test@example.com",
+        "token",
+      );
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe("unknown_template");
+      }
     });
   });
 

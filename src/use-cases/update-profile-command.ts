@@ -3,10 +3,10 @@ import { expiresAt } from "@/lib/expires-at";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IMagicLinkValidator } from "./ports/magic-link-validator";
 import type { IAppConfig } from "./ports/config";
+import type { SendTemplateEmailCommand } from "./send-template-email-command";
 
 export interface UpdateProfileResult {
   error?: "invalid_token" | "email_taken";
-  emailChangeToken?: string;
 }
 
 export class UpdateProfileCommand {
@@ -14,6 +14,7 @@ export class UpdateProfileCommand {
     private repo: ISubscriberRepository,
     private validateMagicLink: IMagicLinkValidator,
     private config: IAppConfig,
+    private sendEmail: SendTemplateEmailCommand,
   ) {}
 
   async execute(
@@ -41,23 +42,18 @@ export class UpdateProfileCommand {
       await this.repo.updateNickname(subscriber.email, updates.nickname);
     }
 
-    const result: UpdateProfileResult = {};
-
     if (isEmailChanging) {
-      result.emailChangeToken = await this.requestEmailChange(
-        subscriber,
-        newEmail,
-      );
+      await this.requestEmailChange(subscriber, newEmail);
     }
 
-    return result;
+    return {};
   }
 
   private async requestEmailChange(
     subscriber: Subscriber,
     newEmail: string,
-  ): Promise<string | undefined> {
-    if (!subscriber.isActivated) return undefined;
+  ): Promise<void> {
+    if (!subscriber.isActivated) return;
 
     const changeToken = crypto.randomUUID();
     const tokenExpiresAt = expiresAt(this.config.confirmationTtlMs);
@@ -69,6 +65,6 @@ export class UpdateProfileCommand {
       tokenExpiresAt,
     );
 
-    return changeToken;
+    await this.sendEmail.execute("email_change", newEmail, changeToken);
   }
 }

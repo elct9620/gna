@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
 import { ValidateMagicLinkCommand } from "@/use-cases/validate-magic-link-command";
 import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
@@ -12,11 +11,7 @@ const app = new Hono()
 
     if (email) {
       const command = container.resolve(RequestMagicLinkCommand);
-      const token = await command.execute(email);
-      if (token) {
-        const sendEmail = container.resolve(SendTemplateEmailCommand);
-        await sendEmail.execute("magic_link", email, token);
-      }
+      await command.execute(email);
     }
 
     return c.json({ status: "link_sent" }, 200);
@@ -57,15 +52,6 @@ const app = new Hono()
     }
     if (result.error === "email_taken") {
       return c.json({ error: "Email already in use" }, 409);
-    }
-
-    if (result.emailChangeToken && body.email) {
-      const sendEmail = container.resolve(SendTemplateEmailCommand);
-      await sendEmail.execute(
-        "email_change",
-        body.email,
-        result.emailChangeToken,
-      );
     }
 
     return c.json({ status: "updated" }, 200);

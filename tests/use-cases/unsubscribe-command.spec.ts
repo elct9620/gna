@@ -4,11 +4,16 @@ import { drizzle } from "drizzle-orm/d1";
 import type { IAppConfig } from "@/use-cases/ports/config";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
+import type { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { UnsubscribeCommand } from "@/use-cases/unsubscribe-command";
 import { ListSubscribersQuery } from "@/use-cases/list-subscribers-query";
 import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
 import { createActiveSubscriber } from "../helpers/subscriber-factory";
+
+const noopSendEmail = {
+  execute: async () => ({ success: true as const }),
+} as unknown as SendTemplateEmailCommand;
 
 describe("UnsubscribeCommand", () => {
   let repo: SubscriberRepository;
@@ -27,7 +32,7 @@ describe("UnsubscribeCommand", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
     repo = new SubscriberRepository(db);
-    subscribe = new SubscribeCommand(repo, config);
+    subscribe = new SubscribeCommand(repo, config, noopSendEmail);
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
     unsubscribe = new UnsubscribeCommand(repo);
     listSubscribers = new ListSubscribersQuery(repo);

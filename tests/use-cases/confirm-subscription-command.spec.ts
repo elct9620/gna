@@ -5,8 +5,13 @@ import { eq } from "drizzle-orm";
 import type { IAppConfig } from "@/use-cases/ports/config";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
+import type { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { SubscriberRepository } from "@/repository/subscriber-repository";
 import { subscribers } from "@/db/schema";
+
+const noopSendEmail = {
+  execute: async () => ({ success: true as const }),
+} as unknown as SendTemplateEmailCommand;
 
 describe("ConfirmSubscriptionCommand", () => {
   let subscribe: SubscribeCommand;
@@ -22,7 +27,7 @@ describe("ConfirmSubscriptionCommand", () => {
     const db = drizzle(env.DB);
     await db.delete(subscribers);
     const repo = new SubscriberRepository(db);
-    subscribe = new SubscribeCommand(repo, config);
+    subscribe = new SubscribeCommand(repo, config, noopSendEmail);
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
   });
 
