@@ -1,3 +1,4 @@
+import { expiresAt } from "@/lib/expires-at";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IAppConfig } from "./ports/config";
 
@@ -13,11 +14,9 @@ export class RequestMagicLinkCommand {
     if (!subscriber || !subscriber.isActivated) return null;
 
     const token = crypto.randomUUID();
-    const expiresAt = new Date(
-      Date.now() + this.config.magicLinkTtlMs,
-    ).toISOString();
+    const tokenExpiresAt = expiresAt(this.config.magicLinkTtlMs);
 
-    await this.repo.updateMagicLink(subscriber.id, token, expiresAt);
+    await this.repo.updateMagicLink(subscriber.id, token, tokenExpiresAt);
 
     return token;
   }

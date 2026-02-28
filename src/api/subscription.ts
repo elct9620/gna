@@ -21,7 +21,7 @@ const app = new Hono()
       await sendEmail.execute(
         "confirmation",
         result.subscriber.email,
-        result.subscriber.confirmationToken!,
+        result.confirmationToken,
       );
     }
 

@@ -61,7 +61,7 @@ container.register(EmailSender, {
   useFactory: instanceCachingFactory((c) => {
     return new EmailSender(
       c.resolve(AWS_CLIENT),
-      c.resolve(APP_CONFIG) as AppConfig,
+      c.resolve<AppConfig>(APP_CONFIG),
     );
   }),
 });
@@ -85,7 +85,7 @@ container.register(SubscribeCommand, {
   useFactory: instanceCachingFactory((c) => {
     return new SubscribeCommand(
       c.resolve(SubscriberRepository),
-      c.resolve(APP_CONFIG) as AppConfig,
+      c.resolve<AppConfig>(APP_CONFIG),
     );
   }),
 });
@@ -115,7 +115,7 @@ container.register(RequestMagicLinkCommand, {
   useFactory: instanceCachingFactory((c) => {
     return new RequestMagicLinkCommand(
       c.resolve(SubscriberRepository),
-      c.resolve(APP_CONFIG) as AppConfig,
+      c.resolve<AppConfig>(APP_CONFIG),
     );
   }),
 });
@@ -131,7 +131,7 @@ container.register(UpdateProfileCommand, {
     return new UpdateProfileCommand(
       c.resolve(SubscriberRepository),
       c.resolve(ValidateMagicLinkCommand),
-      c.resolve(APP_CONFIG) as AppConfig,
+      c.resolve<AppConfig>(APP_CONFIG),
     );
   }),
 });
@@ -158,7 +158,7 @@ container.register(SendTemplateEmailCommand, {
   useFactory: (c) => {
     return new SendTemplateEmailCommand(
       c.resolve(NotificationService),
-      c.resolve(APP_CONFIG) as AppConfig,
+      c.resolve<AppConfig>(APP_CONFIG),
     );
   },
 });
@@ -167,7 +167,7 @@ container.register(SendTestEmailCommand, {
   useFactory: (c) => {
     return new SendTestEmailCommand(
       c.resolve(NotificationService),
-      c.resolve(APP_CONFIG) as AppConfig,
+      c.resolve<AppConfig>(APP_CONFIG),
     );
   },
 });
@@ -177,7 +177,7 @@ container.registerSingleton(Logger);
 
 container.register(AdminAuthService, {
   useFactory: instanceCachingFactory((c) => {
-    const config = c.resolve(APP_CONFIG) as AppConfig;
+    const config = c.resolve<AppConfig>(APP_CONFIG);
     return new AdminAuthService(c.resolve(Logger), config.auth);
   }),
 });

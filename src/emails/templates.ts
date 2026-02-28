@@ -1,3 +1,5 @@
+import type { EmailContent } from "@/use-cases/ports/email-delivery";
+
 export interface EmailTemplateConfig {
   subject: string;
   previewText: string;
@@ -38,3 +40,17 @@ export const EMAIL_TEMPLATES: Record<string, EmailTemplateConfig> = {
 };
 
 export const VALID_TEMPLATE_NAMES = Object.keys(EMAIL_TEMPLATES);
+
+export function buildEmailContent(
+  template: EmailTemplateConfig,
+  baseUrl: string,
+  token: string,
+): EmailContent {
+  return {
+    previewText: template.previewText,
+    heading: template.heading,
+    bodyText: template.bodyText,
+    actionUrl: `${baseUrl}${template.actionPath}?token=${token}`,
+    actionText: template.actionText,
+  };
+}

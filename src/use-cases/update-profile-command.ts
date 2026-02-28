@@ -1,4 +1,5 @@
 import type { Subscriber } from "@/entities/subscriber";
+import { expiresAt } from "@/lib/expires-at";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IMagicLinkValidator } from "./ports/magic-link-validator";
 import type { IAppConfig } from "./ports/config";
@@ -24,8 +25,12 @@ export class UpdateProfileCommand {
       return { error: "invalid_token" };
     }
 
-    if (updates.email && updates.email !== subscriber.email) {
-      if (await this.repo.existsByEmail(updates.email)) {
+    const newEmail = updates.email;
+    const isEmailChanging =
+      newEmail !== undefined && subscriber.isEmailDifferent(newEmail);
+
+    if (isEmailChanging) {
+      if (await this.repo.existsByEmail(newEmail)) {
         return { error: "email_taken" };
       }
     }
@@ -38,10 +43,10 @@ export class UpdateProfileCommand {
 
     const result: UpdateProfileResult = {};
 
-    if (updates.email && updates.email !== subscriber.email) {
+    if (isEmailChanging) {
       result.emailChangeToken = await this.requestEmailChange(
         subscriber,
-        updates.email,
+        newEmail,
       );
     }
 
@@ -55,15 +60,13 @@ export class UpdateProfileCommand {
     if (!subscriber.isActivated) return undefined;
 
     const changeToken = crypto.randomUUID();
-    const expiresAt = new Date(
-      Date.now() + this.config.confirmationTtlMs,
-    ).toISOString();
+    const tokenExpiresAt = expiresAt(this.config.confirmationTtlMs);
 
     await this.repo.updatePendingEmail(
       subscriber.id,
       newEmail,
       changeToken,
-      expiresAt,
+      tokenExpiresAt,
     );
 
     return changeToken;

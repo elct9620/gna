@@ -1,6 +1,6 @@
 import type { IEmailDelivery } from "./ports/email-delivery";
 import type { IAppConfig } from "./ports/config";
-import { EMAIL_TEMPLATES } from "@/emails/templates";
+import { EMAIL_TEMPLATES, buildEmailContent } from "@/emails/templates";
 import { EMAIL_REGEX } from "@/lib/validation";
 
 export class SendTestEmailCommand {
@@ -19,12 +19,10 @@ export class SendTestEmailCommand {
       throw new Error(`Unknown template: ${template}`);
     }
 
-    await this.emailDelivery.send(to, `[TEST] ${tmpl.subject}`, {
-      previewText: tmpl.previewText,
-      heading: tmpl.heading,
-      bodyText: tmpl.bodyText,
-      actionUrl: `${this.config.baseUrl}${tmpl.actionPath}?token=test-token-example`,
-      actionText: tmpl.actionText,
-    });
+    await this.emailDelivery.send(
+      to,
+      `[TEST] ${tmpl.subject}`,
+      buildEmailContent(tmpl, this.config.baseUrl, "test-token-example"),
+    );
   }
 }

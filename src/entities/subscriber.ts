@@ -63,6 +63,10 @@ export class Subscriber {
     return this.magicLinkExpiresAt < new Date();
   }
 
+  isEmailDifferent(email: string): boolean {
+    return email !== this.email;
+  }
+
   withUpdated(overrides: Partial<SubscriberData>): Subscriber {
     return new Subscriber({ ...this, ...overrides });
   }

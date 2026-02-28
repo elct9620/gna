@@ -1,14 +1,16 @@
 import type { Subscriber } from "@/entities/subscriber";
+import { expiresAt } from "@/lib/expires-at";
 import { EMAIL_REGEX } from "@/lib/validation";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 import type { IAppConfig } from "./ports/config";
 
-export type SubscribeAction = "created" | "resend" | "none";
-
-export interface SubscribeResult {
-  subscriber: Subscriber;
-  action: SubscribeAction;
-}
+export type SubscribeResult =
+  | {
+      action: "created" | "resend";
+      subscriber: Subscriber;
+      confirmationToken: string;
+    }
+  | { action: "none"; subscriber: Subscriber };
 
 export class SubscribeCommand {
   constructor(
@@ -38,21 +40,20 @@ export class SubscribeCommand {
     existing: Subscriber,
   ): Promise<SubscribeResult> {
     const newToken = crypto.randomUUID();
-    const expiresAt = new Date(
-      Date.now() + this.config.confirmationTtlMs,
-    ).toISOString();
+    const tokenExpiresAt = expiresAt(this.config.confirmationTtlMs);
     await this.repo.updateConfirmationToken(
       existing.email,
       newToken,
-      expiresAt,
+      tokenExpiresAt,
     );
 
     return {
       subscriber: existing.withUpdated({
         confirmationToken: newToken,
-        confirmationExpiresAt: new Date(expiresAt),
+        confirmationExpiresAt: new Date(tokenExpiresAt),
       }),
       action: "resend",
+      confirmationToken: newToken,
     };
   }
 
@@ -62,9 +63,7 @@ export class SubscribeCommand {
   ): Promise<SubscribeResult> {
     const unsubscribeToken = crypto.randomUUID();
     const confirmationToken = crypto.randomUUID();
-    const confirmationExpiresAt = new Date(
-      Date.now() + this.config.confirmationTtlMs,
-    ).toISOString();
+    const confirmationExpiresAt = expiresAt(this.config.confirmationTtlMs);
 
     const subscriber = await this.repo.create({
       email,
@@ -74,6 +73,6 @@ export class SubscribeCommand {
       confirmationExpiresAt,
     });
 
-    return { subscriber, action: "created" };
+    return { subscriber, action: "created", confirmationToken };
   }
 }
