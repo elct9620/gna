@@ -13,9 +13,8 @@ pnpm dev              # Start Vite dev server with HMR
 pnpm build            # Production build
 pnpm preview          # Build + preview production locally
 pnpm deploy           # Build + deploy to Cloudflare Workers
-pnpm test             # Run tests (vitest run)
+pnpm test             # Run tests with Istanbul coverage
 pnpm test:watch       # Run tests in watch mode
-pnpm test:coverage    # Run tests with Istanbul coverage
 pnpm typecheck        # TypeScript type checking (tsc)
 pnpm format           # Format code with Prettier
 pnpm format:check     # Check formatting

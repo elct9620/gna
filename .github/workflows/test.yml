@@ -35,7 +35,6 @@ jobs:
             --reporter=github-actions \
             --reporter=junit \
             --outputFile.junit=test-results/junit.xml \
-            --coverage.enabled \
             --coverage.reporter=cobertura
 
       - name: Upload coverage to Codecov

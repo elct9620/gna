@@ -35,7 +35,9 @@ export default defineWorkersConfig(async () => {
         },
       },
       coverage: {
+        enabled: true,
         provider: "istanbul",
+        exclude: ["src/components/ui/**"],
       },
     },
   };
