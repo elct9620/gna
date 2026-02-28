@@ -1,17 +1,16 @@
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
-import { ValidateMagicLinkQuery } from "./validate-magic-link-query";
+import { ValidateMagicLinkCommand } from "./validate-magic-link-command";
+import { CONFIRMATION_TTL_MS } from "./constants";
 
 export interface UpdateProfileResult {
   error?: "invalid_token" | "email_taken";
   emailChangeToken?: string;
 }
 
-const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
-
 export class UpdateProfileCommand {
   constructor(
     private repo: ISubscriberRepository,
-    private validateMagicLink: ValidateMagicLinkQuery,
+    private validateMagicLink: ValidateMagicLinkCommand,
   ) {}
 
   async execute(

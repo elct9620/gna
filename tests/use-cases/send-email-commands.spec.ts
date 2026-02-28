@@ -3,9 +3,7 @@ import type {
   IEmailDelivery,
   EmailContent,
 } from "@/use-cases/ports/email-delivery";
-import { SendConfirmationEmailCommand } from "@/use-cases/send-confirmation-email-command";
-import { SendMagicLinkEmailCommand } from "@/use-cases/send-magic-link-email-command";
-import { SendEmailChangeConfirmationCommand } from "@/use-cases/send-email-change-confirmation-command";
+import { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { SendTestEmailCommand } from "@/use-cases/send-test-email-command";
 
 class MockEmailDelivery implements IEmailDelivery {
@@ -28,10 +26,10 @@ describe("Send Email Commands", () => {
     mockDelivery = new MockEmailDelivery();
   });
 
-  describe("SendConfirmationEmailCommand", () => {
+  describe("SendTemplateEmailCommand", () => {
     it("should send confirmation email with correct URL", async () => {
-      const command = new SendConfirmationEmailCommand(mockDelivery, baseUrl);
-      await command.execute("test@example.com", "abc123");
+      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      await command.execute("confirmation", "test@example.com", "abc123");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
       const sent = mockDelivery.sentEmails[0];
@@ -42,12 +40,10 @@ describe("Send Email Commands", () => {
       );
       expect(sent.content.heading).toBe("Confirm Your Subscription");
     });
-  });
 
-  describe("SendMagicLinkEmailCommand", () => {
     it("should send magic link email with correct URL", async () => {
-      const command = new SendMagicLinkEmailCommand(mockDelivery, baseUrl);
-      await command.execute("test@example.com", "magic123");
+      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      await command.execute("magic_link", "test@example.com", "magic123");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
       const sent = mockDelivery.sentEmails[0];
@@ -58,15 +54,10 @@ describe("Send Email Commands", () => {
       );
       expect(sent.content.heading).toBe("Your Profile Access Link");
     });
-  });
 
-  describe("SendEmailChangeConfirmationCommand", () => {
     it("should send email change confirmation with correct URL", async () => {
-      const command = new SendEmailChangeConfirmationCommand(
-        mockDelivery,
-        baseUrl,
-      );
-      await command.execute("new@example.com", "change123");
+      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+      await command.execute("email_change", "new@example.com", "change123");
 
       expect(mockDelivery.sentEmails).toHaveLength(1);
       const sent = mockDelivery.sentEmails[0];
@@ -76,6 +67,14 @@ describe("Send Email Commands", () => {
         "https://test.example.com/confirm?token=change123",
       );
       expect(sent.content.heading).toBe("Confirm Email Change");
+    });
+
+    it("should throw error for unknown template", async () => {
+      const command = new SendTemplateEmailCommand(mockDelivery, baseUrl);
+
+      await expect(
+        command.execute("nonexistent", "test@example.com", "token"),
+      ).rejects.toThrow("Unknown template: nonexistent");
     });
   });
 

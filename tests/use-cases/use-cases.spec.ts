@@ -6,7 +6,7 @@ import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "@/use-cases/confirm-subscription-command";
 import { ConfirmEmailChangeCommand } from "@/use-cases/confirm-email-change-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
-import { ValidateMagicLinkQuery } from "@/use-cases/validate-magic-link-query";
+import { ValidateMagicLinkCommand } from "@/use-cases/validate-magic-link-command";
 import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
 import { UnsubscribeCommand } from "@/use-cases/unsubscribe-command";
 import { RemoveSubscriberCommand } from "@/use-cases/remove-subscriber-command";
@@ -20,7 +20,7 @@ describe("Use Cases", () => {
   let confirmSubscription: ConfirmSubscriptionCommand;
   let confirmEmailChange: ConfirmEmailChangeCommand;
   let requestMagicLink: RequestMagicLinkCommand;
-  let validateMagicLink: ValidateMagicLinkQuery;
+  let validateMagicLink: ValidateMagicLinkCommand;
   let updateProfile: UpdateProfileCommand;
   let unsubscribe: UnsubscribeCommand;
   let removeSubscriber: RemoveSubscriberCommand;
@@ -34,7 +34,7 @@ describe("Use Cases", () => {
     confirmSubscription = new ConfirmSubscriptionCommand(repo);
     confirmEmailChange = new ConfirmEmailChangeCommand(repo);
     requestMagicLink = new RequestMagicLinkCommand(repo);
-    validateMagicLink = new ValidateMagicLinkQuery(repo);
+    validateMagicLink = new ValidateMagicLinkCommand(repo);
     updateProfile = new UpdateProfileCommand(repo, validateMagicLink);
     unsubscribe = new UnsubscribeCommand(repo);
     removeSubscriber = new RemoveSubscriberCommand(repo);
@@ -156,7 +156,7 @@ describe("Use Cases", () => {
     });
   });
 
-  describe("ValidateMagicLinkQuery", () => {
+  describe("ValidateMagicLinkCommand", () => {
     it("should return subscriber for valid token", async () => {
       await createActiveSubscriber("test@example.com");
       const token = (await requestMagicLink.execute("test@example.com"))!;

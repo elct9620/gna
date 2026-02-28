@@ -62,4 +62,8 @@ export class Subscriber {
     if (!this.magicLinkExpiresAt) return true;
     return this.magicLinkExpiresAt < new Date();
   }
+
+  withUpdated(overrides: Partial<SubscriberData>): Subscriber {
+    return new Subscriber({ ...this, ...overrides });
+  }
 }

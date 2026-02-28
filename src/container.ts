@@ -10,14 +10,12 @@ import { SubscribeCommand } from "./use-cases/subscribe-command";
 import { ConfirmSubscriptionCommand } from "./use-cases/confirm-subscription-command";
 import { ConfirmEmailChangeCommand } from "./use-cases/confirm-email-change-command";
 import { RequestMagicLinkCommand } from "./use-cases/request-magic-link-command";
-import { ValidateMagicLinkQuery } from "./use-cases/validate-magic-link-query";
+import { ValidateMagicLinkCommand } from "./use-cases/validate-magic-link-command";
 import { UpdateProfileCommand } from "./use-cases/update-profile-command";
 import { UnsubscribeCommand } from "./use-cases/unsubscribe-command";
 import { RemoveSubscriberCommand } from "./use-cases/remove-subscriber-command";
 import { ListSubscribersQuery } from "./use-cases/list-subscribers-query";
-import { SendConfirmationEmailCommand } from "./use-cases/send-confirmation-email-command";
-import { SendMagicLinkEmailCommand } from "./use-cases/send-magic-link-email-command";
-import { SendEmailChangeConfirmationCommand } from "./use-cases/send-email-change-confirmation-command";
+import { SendTemplateEmailCommand } from "./use-cases/send-template-email-command";
 import { SendTestEmailCommand } from "./use-cases/send-test-email-command";
 import { Logger } from "./services/logger";
 import { AdminAuthService } from "./services/admin-auth-service";
@@ -103,9 +101,9 @@ container.register(RequestMagicLinkCommand, {
   }),
 });
 
-container.register(ValidateMagicLinkQuery, {
+container.register(ValidateMagicLinkCommand, {
   useFactory: instanceCachingFactory((c) => {
-    return new ValidateMagicLinkQuery(c.resolve(SubscriberRepository));
+    return new ValidateMagicLinkCommand(c.resolve(SubscriberRepository));
   }),
 });
 
@@ -113,7 +111,7 @@ container.register(UpdateProfileCommand, {
   useFactory: instanceCachingFactory((c) => {
     return new UpdateProfileCommand(
       c.resolve(SubscriberRepository),
-      c.resolve(ValidateMagicLinkQuery),
+      c.resolve(ValidateMagicLinkCommand),
     );
   }),
 });
@@ -136,27 +134,9 @@ container.register(ListSubscribersQuery, {
   }),
 });
 
-container.register(SendConfirmationEmailCommand, {
+container.register(SendTemplateEmailCommand, {
   useFactory: (c) => {
-    return new SendConfirmationEmailCommand(
-      c.resolve(NotificationService),
-      c.resolve(BASE_URL) as string,
-    );
-  },
-});
-
-container.register(SendMagicLinkEmailCommand, {
-  useFactory: (c) => {
-    return new SendMagicLinkEmailCommand(
-      c.resolve(NotificationService),
-      c.resolve(BASE_URL) as string,
-    );
-  },
-});
-
-container.register(SendEmailChangeConfirmationCommand, {
-  useFactory: (c) => {
-    return new SendEmailChangeConfirmationCommand(
+    return new SendTemplateEmailCommand(
       c.resolve(NotificationService),
       c.resolve(BASE_URL) as string,
     );

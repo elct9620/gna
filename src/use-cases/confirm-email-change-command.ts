@@ -1,4 +1,4 @@
-import { Subscriber } from "@/entities/subscriber";
+import type { Subscriber } from "@/entities/subscriber";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export class ConfirmEmailChangeCommand {
@@ -17,8 +17,7 @@ export class ConfirmEmailChangeCommand {
 
     await this.repo.commitEmailChange(subscriber.id, newEmail);
 
-    return new Subscriber({
-      ...subscriber,
+    return subscriber.withUpdated({
       email: newEmail,
       pendingEmail: null,
       confirmationToken: null,

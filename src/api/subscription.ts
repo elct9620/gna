@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { SendConfirmationEmailCommand } from "@/use-cases/send-confirmation-email-command";
+import { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { SubscribeCommand } from "@/use-cases/subscribe-command";
 import { UnsubscribeCommand } from "@/use-cases/unsubscribe-command";
 
@@ -17,8 +17,9 @@ const app = new Hono()
     }
 
     if (result.action === "created" || result.action === "resend") {
-      const sendConfirmation = container.resolve(SendConfirmationEmailCommand);
-      await sendConfirmation.execute(
+      const sendEmail = container.resolve(SendTemplateEmailCommand);
+      await sendEmail.execute(
+        "confirmation",
         result.subscriber.email,
         result.subscriber.confirmationToken!,
       );

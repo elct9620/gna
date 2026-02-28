@@ -1,4 +1,4 @@
-import { Subscriber } from "@/entities/subscriber";
+import type { Subscriber } from "@/entities/subscriber";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
 
 export class ConfirmSubscriptionCommand {
@@ -15,8 +15,7 @@ export class ConfirmSubscriptionCommand {
 
     await this.repo.activate(subscriber.id, now);
 
-    return new Subscriber({
-      ...subscriber,
+    return subscriber.withUpdated({
       activatedAt: new Date(now),
       confirmationToken: null,
       confirmationExpiresAt: null,

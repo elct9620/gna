@@ -1,9 +1,8 @@
 import { Hono } from "hono";
 import { container } from "@/container";
-import { SendMagicLinkEmailCommand } from "@/use-cases/send-magic-link-email-command";
-import { SendEmailChangeConfirmationCommand } from "@/use-cases/send-email-change-confirmation-command";
+import { SendTemplateEmailCommand } from "@/use-cases/send-template-email-command";
 import { RequestMagicLinkCommand } from "@/use-cases/request-magic-link-command";
-import { ValidateMagicLinkQuery } from "@/use-cases/validate-magic-link-query";
+import { ValidateMagicLinkCommand } from "@/use-cases/validate-magic-link-command";
 import { UpdateProfileCommand } from "@/use-cases/update-profile-command";
 
 const app = new Hono()
@@ -15,8 +14,8 @@ const app = new Hono()
       const command = container.resolve(RequestMagicLinkCommand);
       const token = await command.execute(email);
       if (token) {
-        const sendMagicLink = container.resolve(SendMagicLinkEmailCommand);
-        await sendMagicLink.execute(email, token);
+        const sendEmail = container.resolve(SendTemplateEmailCommand);
+        await sendEmail.execute("magic_link", email, token);
       }
     }
 
@@ -28,7 +27,7 @@ const app = new Hono()
       return c.json({ error: "Missing token" }, 401);
     }
 
-    const query = container.resolve(ValidateMagicLinkQuery);
+    const query = container.resolve(ValidateMagicLinkCommand);
     const subscriber = await query.execute(token);
     if (!subscriber) {
       return c.json({ error: "Invalid or expired token" }, 401);
@@ -61,10 +60,12 @@ const app = new Hono()
     }
 
     if (result.emailChangeToken && body.email) {
-      const sendEmailChange = container.resolve(
-        SendEmailChangeConfirmationCommand,
+      const sendEmail = container.resolve(SendTemplateEmailCommand);
+      await sendEmail.execute(
+        "email_change",
+        body.email,
+        result.emailChangeToken,
       );
-      await sendEmailChange.execute(body.email, result.emailChangeToken);
     }
 
     return c.json({ status: "updated" }, 200);

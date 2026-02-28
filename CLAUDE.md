@@ -69,8 +69,8 @@ Client loads → createBrowserRouter (hydrationData) → RouterProvider → Inte
 
 Business logic lives in `src/use-cases/` as Commands (mutate state) and Queries (read-only):
 
-- **Commands:** `SubscribeCommand`, `ConfirmSubscriptionCommand`, `UpdateProfileCommand`, `UnsubscribeCommand`, `RemoveSubscriberCommand`, `RequestMagicLinkCommand`, `ConfirmEmailChangeCommand`, `SendConfirmationEmailCommand`, `SendMagicLinkEmailCommand`, `SendEmailChangeConfirmationCommand`, `SendTestEmailCommand`
-- **Queries:** `ListSubscribersQuery`, `ValidateMagicLinkQuery`
+- **Commands:** `SubscribeCommand`, `ConfirmSubscriptionCommand`, `UpdateProfileCommand`, `UnsubscribeCommand`, `RemoveSubscriberCommand`, `RequestMagicLinkCommand`, `ConfirmEmailChangeCommand`, `ValidateMagicLinkCommand`, `SendTemplateEmailCommand`, `SendTestEmailCommand`
+- **Queries:** `ListSubscribersQuery`
 
 Use cases depend on **port interfaces** (`src/use-cases/ports/`), not concrete implementations:
 
@@ -90,7 +90,7 @@ tsyringe container is configured in `src/container.ts` and imported at the top o
 | Singleton | `registerSingleton()`                     | No constructor deps                            | `EmailRenderer`, `Logger`                                  |
 | Factory   | `register()` + `instanceCachingFactory()` | Needs env values, constructor deps, or caching | Use cases, repositories, `EmailSender`, `AdminAuthService` |
 
-Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`, `BASE_URL`). Notification commands (e.g., `SendConfirmationEmailCommand`) use factory without caching to get fresh instances.
+Non-class dependencies use exported `Symbol` tokens (e.g. `DATABASE`, `AWS_CLIENT`, `AWS_REGION`, `FROM_ADDRESS`, `BASE_URL`). Notification commands (e.g., `SendTemplateEmailCommand`) use factory without caching to get fresh instances.
 
 ### Database
 

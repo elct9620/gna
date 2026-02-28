@@ -1,6 +1,7 @@
-import { Subscriber } from "@/entities/subscriber";
+import type { Subscriber } from "@/entities/subscriber";
 import { EMAIL_REGEX } from "@/lib/validation";
 import type { ISubscriberRepository } from "./ports/subscriber-repository";
+import { CONFIRMATION_TTL_MS } from "./constants";
 
 export type SubscribeAction = "created" | "resend" | "none";
 
@@ -8,8 +9,6 @@ export interface SubscribeResult {
   subscriber: Subscriber;
   action: SubscribeAction;
 }
-
-const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 export class SubscribeCommand {
   constructor(private repo: ISubscriberRepository) {}
@@ -44,8 +43,7 @@ export class SubscribeCommand {
     );
 
     return {
-      subscriber: new Subscriber({
-        ...existing,
+      subscriber: existing.withUpdated({
         confirmationToken: newToken,
         confirmationExpiresAt: new Date(expiresAt),
       }),
